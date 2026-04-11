@@ -327,10 +327,10 @@ const styles = StyleSheet.create({
   },
   editStatusPencil: {
     alignItems: 'center',
-    bottom: -5,
+    bottom: 8,
     justifyContent: 'center',
     position: 'absolute',
-    right: -7,
+    right:6,
   },
   editStatusPencilInner: {
     position: 'absolute',
