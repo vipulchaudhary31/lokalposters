@@ -3,6 +3,14 @@ import type { ComponentType } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import Svg, {
+  Circle,
+  Defs,
+  LinearGradient as SvgLinearGradient,
+  RadialGradient,
+  Rect,
+  Stop,
+} from 'react-native-svg';
 import ActionBar1 from './assets/action-bar/1.svg';
 import ActionBar2 from './assets/action-bar/2.svg';
 import ActionBar4 from './assets/action-bar/4.svg';
@@ -15,6 +23,7 @@ import {
   Animated,
   Easing,
   FlatList,
+  LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Pressable,
@@ -29,20 +38,25 @@ import {
 } from 'react-native-safe-area-context';
 
 const ASSETS = {
-  editStatusAvatar: require('./assets/action-bar/3-avatar.png'),
-  feed1: require('./assets/feed/image 60763.png'),
-  feed2: require('./assets/feed/image 60764.png'),
-  feed3: require('./assets/feed/image 60765.png'),
-  feed4: require('./assets/feed/image 60768.png'),
-  feed5: require('./assets/feed/image 60769.png'),
+  editStatusAvatar: require('./assets/action-bar/sample-photo-bg.png'),
+  feed1: require('./assets/feed/1.png'),
+  feed2: require('./assets/feed/2.png'),
+  feed3: require('./assets/feed/3.png'),
+  feed4: require('./assets/feed/4.png'),
+  feed5: require('./assets/feed/5.png'),
+  feed6: require('./assets/feed/6.png'),
+  feed7: require('./assets/feed/7.png'),
+  feed8: require('./assets/feed/8.png'),
+  feed9: require('./assets/feed/9.png'),
+  feed10: require('./assets/feed/10.png'),
 };
 
-const HEADER_HEIGHT = 82;
 const ACTION_BAR_HEIGHT = 96;
 const BOTTOM_NAV_HEIGHT = 48;
 const MAX_BOTTOM_VISUAL_INSET = 16;
 const SWIPE_DIRECTION_THRESHOLD = 6;
 const CHROME_ANIMATION_DURATION = 280;
+const HEADER_BOTTOM_PADDING = 12;
 
 const TOP_FILTERS: Array<{
   active?: boolean;
@@ -56,6 +70,10 @@ const TOP_FILTERS: Array<{
   { label: 'Politics' },
   { label: 'Suvichar' },
   { icon: 'birthday', label: 'Birthday' },
+  { label: 'Motivation' },
+  { label: 'Festival' },
+  { label: 'Devotional' },
+  { label: 'Good Morning' },
   { chevron: true, label: 'More' },
 ];
 
@@ -98,104 +116,452 @@ const NAV_ITEMS: Array<{
 ];
 
 type PosterStagePalette = {
-  base: string;
-  bloom: string;
-  bloomSecondary: string;
   dominantHex: string;
-  washFrom: string;
-  washTo: string;
 };
 
-function mixHexOverBlack(hex: string, opacity: number) {
+type FeedItem = {
+  key: string;
+  palette: PosterStagePalette;
+  source: number;
+};
+
+interface AuraParams {
+  gradientMidOpacity: number;
+  gradientMidPoint: number;
+  glowOpacity: number;
+  accentBlobOpacity: number;
+  accentBlobBlur: number;
+  vignetteOpacity: number;
+  shadowY: number;
+  shadowBlur: number;
+  shadowOpacity: number;
+  shadowColorMatch: number;
+}
+
+interface AuraPalette {
+  dominant: [number, number, number];
+  vibrant: [number, number, number];
+  muted: [number, number, number];
+  darkened: [number, number, number];
+}
+
+interface AuraSpeckle {
+  color: [number, number, number];
+  opacity: number;
+  radius: number;
+  x: number;
+  y: number;
+}
+
+const AURA_INTENSITY = 0.6;
+const AURA_PARAMS: AuraParams = {
+  gradientMidOpacity: 0.72,
+  gradientMidPoint: 44,
+  glowOpacity: 0.5,
+  accentBlobOpacity: 0.42,
+  accentBlobBlur: 80,
+  vignetteOpacity: 0.2,
+  shadowY: 24,
+  shadowBlur: 56,
+  shadowOpacity: 0.18,
+  shadowColorMatch: 0.3,
+};
+
+function normalizeHex(hex: string) {
   const normalizedHex = hex.replace('#', '');
 
   if (!/^[0-9A-Fa-f]{6}$/.test(normalizedHex)) {
+    return null;
+  }
+
+  return normalizedHex;
+}
+
+function mixHex(sourceHex: string, targetHex: string, sourceWeight: number) {
+  const normalizedSourceHex = normalizeHex(sourceHex);
+  const normalizedTargetHex = normalizeHex(targetHex);
+
+  if (!normalizedSourceHex || !normalizedTargetHex) {
     return '#000000';
   }
 
-  const alpha = Math.max(0, Math.min(1, opacity));
-  const red = Math.round(parseInt(normalizedHex.slice(0, 2), 16) * alpha);
-  const green = Math.round(parseInt(normalizedHex.slice(2, 4), 16) * alpha);
-  const blue = Math.round(parseInt(normalizedHex.slice(4, 6), 16) * alpha);
+  const weight = Math.max(0, Math.min(1, sourceWeight));
+  const red = Math.round(
+    parseInt(normalizedSourceHex.slice(0, 2), 16) * weight +
+      parseInt(normalizedTargetHex.slice(0, 2), 16) * (1 - weight),
+  );
+  const green = Math.round(
+    parseInt(normalizedSourceHex.slice(2, 4), 16) * weight +
+      parseInt(normalizedTargetHex.slice(2, 4), 16) * (1 - weight),
+  );
+  const blue = Math.round(
+    parseInt(normalizedSourceHex.slice(4, 6), 16) * weight +
+      parseInt(normalizedTargetHex.slice(4, 6), 16) * (1 - weight),
+  );
 
   return `#${[red, green, blue]
     .map((channel) => channel.toString(16).padStart(2, '0'))
     .join('')}`;
 }
 
-const FEED_ITEMS: Array<{
-  key: string;
-  palette: PosterStagePalette;
-  source: number;
-}> = [
+function mixHexOverBlack(hex: string, opacity: number) {
+  return mixHex(hex, '#000000', opacity);
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const normalizedHex = normalizeHex(hex);
+
+  if (!normalizedHex) {
+    return [0, 0, 0];
+  }
+
+  return [
+    parseInt(normalizedHex.slice(0, 2), 16),
+    parseInt(normalizedHex.slice(2, 4), 16),
+    parseInt(normalizedHex.slice(4, 6), 16),
+  ];
+}
+
+function clampRgb(value: number) {
+  return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+function rgba(
+  [red, green, blue]: [number, number, number],
+  opacity: number,
+) {
+  return `rgba(${red}, ${green}, ${blue}, ${opacity})`;
+}
+
+function rgb([red, green, blue]: [number, number, number]) {
+  return `rgb(${red}, ${green}, ${blue})`;
+}
+
+function buildAuraPalette(dominantHex: string): AuraPalette {
+  const [dr, dg, db] = hexToRgb(dominantHex);
+  const avg = (dr + dg + db) / 3;
+  const boost = 1.5;
+
+  const vibrant: [number, number, number] = [
+    clampRgb(avg + (dr - avg) * boost + 30),
+    clampRgb(avg + (dg - avg) * boost + 30),
+    clampRgb(avg + (db - avg) * boost + 30),
+  ];
+  const muted: [number, number, number] = [
+    clampRgb(avg * 0.4 + dr * 0.2 + 120),
+    clampRgb(avg * 0.4 + dg * 0.2 + 120),
+    clampRgb(avg * 0.4 + db * 0.2 + 120),
+  ];
+  const darkened: [number, number, number] = [
+    clampRgb(dr * 0.35),
+    clampRgb(dg * 0.35),
+    clampRgb(db * 0.35),
+  ];
+
+  return {
+    darkened,
+    dominant: [dr, dg, db],
+    muted,
+    vibrant,
+  };
+}
+
+function createSeededRandom(seedSource: string) {
+  let seed = 0;
+
+  for (let index = 0; index < seedSource.length; index += 1) {
+    seed = (seed * 31 + seedSource.charCodeAt(index)) >>> 0;
+  }
+
+  return () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+
+    return seed / 4294967296;
+  };
+}
+
+function buildAuraSpeckles(
+  dominantHex: string,
+  palette: AuraPalette,
+  width: number,
+  height: number,
+): AuraSpeckle[] {
+  const random = createSeededRandom(dominantHex);
+  const speckles: AuraSpeckle[] = [];
+
+  for (let index = 0; index < 56; index += 1) {
+    const useVibrant = random() > 0.6;
+
+    speckles.push({
+      color: useVibrant ? palette.vibrant : palette.muted,
+      opacity: 0.012 + random() * 0.028,
+      radius: 0.9 + random() * 2.6,
+      x: random() * width,
+      y: random() * height,
+    });
+  }
+
+  return speckles;
+}
+
+const FEED_ITEMS: FeedItem[] = [
   {
     key: 'feed-1',
     palette: {
-      base: '#F2EDE7',
-      bloom: 'rgba(248, 212, 158, 0.22)',
-      bloomSecondary: 'rgba(255, 255, 255, 0.16)',
-      dominantHex: '#90857B',
-      washFrom: 'rgba(255, 255, 255, 0.06)',
-      washTo: 'rgba(222, 191, 148, 0.16)',
+      dominantHex: '#E5E4DE',
     },
     source: ASSETS.feed1,
   },
   {
     key: 'feed-2',
     palette: {
-      base: '#F4E1EC',
-      bloom: 'rgba(238, 184, 220, 0.22)',
-      bloomSecondary: 'rgba(255, 244, 250, 0.14)',
-      dominantHex: '#6A4D63',
-      washFrom: 'rgba(255, 255, 255, 0.05)',
-      washTo: 'rgba(221, 159, 201, 0.16)',
+      dominantHex: '#621C4D',
     },
     source: ASSETS.feed2,
   },
   {
     key: 'feed-3',
     palette: {
-      base: '#F3E9DB',
-      bloom: 'rgba(219, 191, 132, 0.16)',
-      bloomSecondary: 'rgba(245, 236, 217, 0.12)',
-      dominantHex: '#9B8767',
-      washFrom: 'rgba(255, 255, 255, 0.04)',
-      washTo: 'rgba(214, 186, 136, 0.12)',
+      dominantHex: '#6E1B56',
     },
     source: ASSETS.feed3,
   },
   {
     key: 'feed-4',
     palette: {
-      base: '#B1AAC2',
-      bloom: 'rgba(149, 133, 210, 0.18)',
-      bloomSecondary: 'rgba(232, 218, 255, 0.12)',
-      dominantHex: '#223C66',
-      washFrom: 'rgba(255, 255, 255, 0.03)',
-      washTo: 'rgba(126, 113, 178, 0.16)',
+      dominantHex: '#E4DFC9',
     },
     source: ASSETS.feed4,
   },
   {
     key: 'feed-5',
     palette: {
-      base: '#F4EBDD',
-      bloom: 'rgba(208, 182, 118, 0.15)',
-      bloomSecondary: 'rgba(250, 242, 225, 0.12)',
-      dominantHex: '#9A8A63',
-      washFrom: 'rgba(255, 255, 255, 0.04)',
-      washTo: 'rgba(203, 182, 136, 0.1)',
+      dominantHex: '#432918',
     },
     source: ASSETS.feed5,
   },
+  {
+    key: 'feed-6',
+    palette: {
+      dominantHex: '#834E07',
+    },
+    source: ASSETS.feed6,
+  },
+  {
+    key: 'feed-7',
+    palette: {
+      dominantHex: '#F8DEBC',
+    },
+    source: ASSETS.feed7,
+  },
+  {
+    key: 'feed-8',
+    palette: {
+      dominantHex: '#02234E',
+    },
+    source: ASSETS.feed8,
+  },
+  {
+    key: 'feed-9',
+    palette: {
+      dominantHex: '#EDDFD0',
+    },
+    source: ASSETS.feed9,
+  },
+  {
+    key: 'feed-10',
+    palette: {
+      dominantHex: '#E3D6BA',
+    },
+    source: ASSETS.feed10,
+  },
 ];
 
-function PosterStageBackdrop() {
+const firstFeedItem = FEED_ITEMS[0];
+const LOOPED_FEED_ITEMS = firstFeedItem
+  ? [...FEED_ITEMS, { ...firstFeedItem, key: `${firstFeedItem.key}-loop` }]
+  : FEED_ITEMS;
+
+function PosterStageBackdrop({
+  dominantHex,
+  height,
+  width,
+}: {
+  dominantHex: string;
+  height: number;
+  width: number;
+}) {
+  const palette = buildAuraPalette(dominantHex);
+  const baseColor = hexToRgb(mixHex(dominantHex, '#120D14', 0.26));
+  const topShadeColor = hexToRgb(mixHex(dominantHex, '#17111A', 0.3));
+  const edgeShadeColor = hexToRgb(mixHex(dominantHex, '#0B0810', 0.16));
+  const bottomLiftColor = hexToRgb(mixHex(dominantHex, '#2A1E2F', 0.42));
+  const speckles = buildAuraSpeckles(
+    dominantHex,
+    palette,
+    width,
+    height,
+  );
+  const idBase = `poster-stage-aura-${dominantHex.replace('#', '')}`;
+  const centerGlowRadius = Math.max(width * 0.84, height * 0.48);
+  const topBlobRadius = Math.max(width * 0.74, height * 0.34);
+  const bottomBlobRadius = Math.max(width * 0.66, height * 0.28);
+  const sideGlowRadius = Math.max(width * 0.7, height * 0.36);
+  const vignetteRadius = Math.max(width * 1.02, height * 0.8);
+
   return (
     <View
       pointerEvents="none"
-      style={[styles.posterStageBackdrop, { backgroundColor: '#000000' }]}
-    />
+      style={[
+        styles.posterStageBackdrop,
+        {
+          backgroundColor: rgba(baseColor, 1),
+        },
+      ]}
+    >
+      <Svg
+        height="100%"
+        preserveAspectRatio="none"
+        style={styles.posterStageBackdropSvg}
+        width="100%"
+      >
+        <Defs>
+          <SvgLinearGradient
+            id={`${idBase}-base-gradient`}
+            x1="0%"
+            x2="100%"
+            y1="0%"
+            y2="100%"
+          >
+            <Stop offset="0%" stopColor={rgb(topShadeColor)} stopOpacity="1" />
+            <Stop
+              offset={`${AURA_PARAMS.gradientMidPoint}%`}
+              stopColor={rgb(baseColor)}
+              stopOpacity={AURA_PARAMS.gradientMidOpacity}
+            />
+            <Stop offset="100%" stopColor={rgb(bottomLiftColor)} stopOpacity="1" />
+          </SvgLinearGradient>
+          <RadialGradient
+            cx={width * 0.5}
+            cy={height * 0.56}
+            gradientUnits="userSpaceOnUse"
+            id={`${idBase}-center-haze`}
+            r={Math.max(width * 0.9, height * 0.54)}
+          >
+            <Stop offset="0%" stopColor={rgb(palette.muted)} stopOpacity="0.22" />
+            <Stop offset="52%" stopColor={rgb(palette.muted)} stopOpacity="0.08" />
+            <Stop offset="100%" stopColor={rgb(palette.muted)} stopOpacity="0" />
+          </RadialGradient>
+          <RadialGradient
+            cx={width * 0.5}
+            cy={height * 0.44}
+            gradientUnits="userSpaceOnUse"
+            id={`${idBase}-center-glow`}
+            r={centerGlowRadius}
+          >
+            <Stop
+              offset="0%"
+              stopColor={rgb(palette.vibrant)}
+              stopOpacity={AURA_PARAMS.glowOpacity}
+            />
+            <Stop offset="58%" stopColor={rgb(palette.vibrant)} stopOpacity="0.14" />
+            <Stop offset="100%" stopColor={rgb(palette.vibrant)} stopOpacity="0" />
+          </RadialGradient>
+          <RadialGradient
+            cx={width * 0.88}
+            cy={height * 0.04}
+            gradientUnits="userSpaceOnUse"
+            id={`${idBase}-top-blob`}
+            r={topBlobRadius}
+          >
+            <Stop
+              offset="0%"
+              stopColor={rgb(palette.vibrant)}
+              stopOpacity={AURA_PARAMS.accentBlobOpacity}
+            />
+            <Stop
+              offset="54%"
+              stopColor={rgb(palette.vibrant)}
+              stopOpacity={AURA_PARAMS.accentBlobOpacity * 0.24}
+            />
+            <Stop offset="100%" stopColor={rgb(palette.vibrant)} stopOpacity="0" />
+          </RadialGradient>
+          <RadialGradient
+            cx={width * 0.18}
+            cy={height * 0.92}
+            gradientUnits="userSpaceOnUse"
+            id={`${idBase}-bottom-blob`}
+            r={bottomBlobRadius}
+          >
+            <Stop
+              offset="0%"
+              stopColor={rgb(palette.dominant)}
+              stopOpacity={AURA_PARAMS.accentBlobOpacity * 0.6}
+            />
+            <Stop
+              offset="56%"
+              stopColor={rgb(palette.dominant)}
+              stopOpacity={AURA_PARAMS.accentBlobOpacity * 0.18}
+            />
+            <Stop offset="100%" stopColor={rgb(palette.dominant)} stopOpacity="0" />
+          </RadialGradient>
+          <RadialGradient
+            cx={width * 1.04}
+            cy={height * 0.72}
+            gradientUnits="userSpaceOnUse"
+            id={`${idBase}-side-glow`}
+            r={sideGlowRadius}
+          >
+            <Stop offset="0%" stopColor={rgb(palette.vibrant)} stopOpacity="0.18" />
+            <Stop offset="58%" stopColor={rgb(palette.vibrant)} stopOpacity="0.06" />
+            <Stop offset="100%" stopColor={rgb(palette.vibrant)} stopOpacity="0" />
+          </RadialGradient>
+          <RadialGradient
+            cx={width * 0.5}
+            cy={height * 0.5}
+            gradientUnits="userSpaceOnUse"
+            id={`${idBase}-vignette`}
+            r={vignetteRadius}
+          >
+            <Stop offset="34%" stopColor="#000000" stopOpacity="0" />
+            <Stop
+              offset="100%"
+              stopColor="#000000"
+              stopOpacity={AURA_PARAMS.vignetteOpacity}
+            />
+          </RadialGradient>
+          <SvgLinearGradient
+            id={`${idBase}-top-veil`}
+            x1="0%"
+            x2="0%"
+            y1="0%"
+            y2="100%"
+          >
+            <Stop offset="0%" stopColor={rgb(edgeShadeColor)} stopOpacity="0.46" />
+            <Stop offset="42%" stopColor={rgb(edgeShadeColor)} stopOpacity="0.08" />
+            <Stop offset="100%" stopColor={rgb(edgeShadeColor)} stopOpacity="0" />
+          </SvgLinearGradient>
+        </Defs>
+        <Rect fill={`url(#${idBase}-base-gradient)`} height="100%" width="100%" x="0" y="0" />
+        <Rect fill={`url(#${idBase}-center-haze)`} height="100%" width="100%" x="0" y="0" />
+        <Rect fill={`url(#${idBase}-center-glow)`} height="100%" width="100%" x="0" y="0" />
+        <Rect fill={`url(#${idBase}-top-blob)`} height="100%" width="100%" x="0" y="0" />
+        <Rect fill={`url(#${idBase}-bottom-blob)`} height="100%" width="100%" x="0" y="0" />
+        <Rect fill={`url(#${idBase}-side-glow)`} height="100%" width="100%" x="0" y="0" />
+        <Rect fill={`url(#${idBase}-top-veil)`} height="100%" width="100%" x="0" y="0" />
+        {speckles.map((speckle, index) => (
+          <Circle
+            key={`${idBase}-speckle-${index}`}
+            cx={speckle.x}
+            cy={speckle.y}
+            fill={rgb(speckle.color)}
+            opacity={speckle.opacity}
+            r={speckle.radius}
+          />
+        ))}
+        <Rect fill={`url(#${idBase}-vignette)`} height="100%" width="100%" x="0" y="0" />
+      </Svg>
+    </View>
   );
 }
 
@@ -265,11 +631,15 @@ function EditStatusIcon() {
   return (
     <View style={styles.editStatusIcon}>
       <View style={styles.editStatusCircle}>
-        <Image
-          contentFit="cover"
-          source={ASSETS.editStatusAvatar}
-          style={styles.editStatusAvatar}
-        />
+        <View style={styles.editStatusAvatarFrame}>
+          <Image
+            contentFit="cover"
+            contentPosition="center"
+            source={ASSETS.editStatusAvatar}
+            style={styles.editStatusAvatar}
+          />
+        </View>
+        <View pointerEvents="none" style={styles.editStatusBorderOverlay} />
       </View>
       <View pointerEvents="none" style={styles.editStatusPencil}>
         <EditStatusPencil height={28} width={28} />
@@ -295,21 +665,20 @@ function BottomNavItem({
 function FeedScreen() {
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const feedListRef = useRef<FlatList<FeedItem>>(null);
   const chromeVisibility = useRef(new Animated.Value(1)).current;
   const activeFeedIndexRef = useRef(0);
   const isChromeVisibleRef = useRef(true);
   const lastScrollOffsetRef = useRef(0);
+  const [filterWrapHeight, setFilterWrapHeight] = useState(0);
   const [activeFeedIndex, setActiveFeedIndex] = useState(0);
-  const resolvedHeaderHeight = HEADER_HEIGHT + insets.top;
+  const resolvedHeaderHeight =
+    insets.top + 8 + filterWrapHeight + HEADER_BOTTOM_PADDING;
   const resolvedBottomInset = Math.min(insets.bottom, MAX_BOTTOM_VISUAL_INSET);
   const resolvedBottomNavHeight = BOTTOM_NAV_HEIGHT + resolvedBottomInset;
   const resolvedActionBarHeight = ACTION_BAR_HEIGHT;
   const posterAreaHeight = height - resolvedHeaderHeight;
   const activeFeedItem = FEED_ITEMS[activeFeedIndex] ?? FEED_ITEMS[0];
-  const headerBackgroundColor = mixHexOverBlack(
-    activeFeedItem.palette.dominantHex,
-    0.56,
-  );
   const posterBottomInset = chromeVisibility.interpolate({
     inputRange: [0, 1],
     outputRange: [
@@ -336,14 +705,15 @@ function FeedScreen() {
 
   const syncActiveFeedIndex = (offsetY: number) => {
     const nextIndex = Math.round(offsetY / posterAreaHeight);
-    const clampedIndex = Math.max(0, Math.min(FEED_ITEMS.length - 1, nextIndex));
+    const normalizedIndex =
+      ((nextIndex % FEED_ITEMS.length) + FEED_ITEMS.length) % FEED_ITEMS.length;
 
-    if (clampedIndex === activeFeedIndexRef.current) {
+    if (normalizedIndex === activeFeedIndexRef.current) {
       return;
     }
 
-    activeFeedIndexRef.current = clampedIndex;
-    setActiveFeedIndex(clampedIndex);
+    activeFeedIndexRef.current = normalizedIndex;
+    setActiveFeedIndex(normalizedIndex);
   };
 
   const setChromeVisible = (visible: boolean) => {
@@ -378,22 +748,53 @@ function FeedScreen() {
     lastScrollOffsetRef.current = offsetY;
   };
 
+  const handleFeedMomentumEnd = ({
+    nativeEvent,
+  }: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const nextIndex = Math.round(nativeEvent.contentOffset.y / posterAreaHeight);
+
+    if (nextIndex !== LOOPED_FEED_ITEMS.length - 1) {
+      return;
+    }
+
+    feedListRef.current?.scrollToOffset({ animated: false, offset: 0 });
+    activeFeedIndexRef.current = 0;
+    lastScrollOffsetRef.current = 0;
+    setActiveFeedIndex(0);
+  };
+
+  const handleFilterWrapLayout = ({
+    nativeEvent,
+  }: LayoutChangeEvent) => {
+    const nextHeight = Math.ceil(nativeEvent.layout.height);
+
+    if (nextHeight === filterWrapHeight) {
+      return;
+    }
+
+    setFilterWrapHeight(nextHeight);
+  };
+
   return (
     <View style={styles.screen}>
       <StatusBar hidden={false} style="light" />
 
       <View style={styles.screenContent}>
+        <PosterStageBackdrop
+          dominantHex={activeFeedItem.palette.dominantHex}
+          height={resolvedHeaderHeight + posterAreaHeight}
+          width={width}
+        />
         <View
           style={[
             styles.header,
             {
-              backgroundColor: headerBackgroundColor,
               height: resolvedHeaderHeight,
               paddingTop: insets.top + 8,
             },
           ]}
         >
-          <View style={styles.filterWrap}>
+          <View onLayout={handleFilterWrapLayout} style={styles.filterWrap}>
             {TOP_FILTERS.map((filter) => (
               <FilterChip key={filter.label} {...filter} />
             ))}
@@ -402,7 +803,7 @@ function FeedScreen() {
 
         <View style={[styles.posterArea, { height: posterAreaHeight }]}>
           <FlatList
-            data={FEED_ITEMS}
+            data={LOOPED_FEED_ITEMS}
             decelerationRate="fast"
             getItemLayout={(_, index) => ({
               index,
@@ -410,12 +811,12 @@ function FeedScreen() {
               offset: posterAreaHeight * index,
             })}
             keyExtractor={(item) => item.key}
+            onMomentumScrollEnd={handleFeedMomentumEnd}
             onScroll={handleFeedScroll}
             onScrollBeginDrag={handleFeedScroll}
             pagingEnabled
             renderItem={({ item }) => (
               <View style={[styles.posterFrame, { height: posterAreaHeight, width }]}>
-                <PosterStageBackdrop />
                 <Animated.View
                   style={[styles.posterContent, { paddingBottom: posterBottomInset }]}
                 >
@@ -432,6 +833,7 @@ function FeedScreen() {
             snapToAlignment="start"
             snapToInterval={posterAreaHeight}
             style={styles.posterList}
+            ref={feedListRef}
           />
         </View>
       </View>
@@ -514,16 +916,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   editStatusAvatar: {
-    height: 60.16,
-    left: -25.52,
+    height: '100%',
+    width: '100%',
+  },
+  editStatusAvatarFrame: {
+    borderRadius: 24,
+    flex: 1,
+    overflow: 'hidden',
+  },
+  editStatusBorderOverlay: {
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 22,
+    borderWidth: 2,
+    bottom: 1,
+    left: 1,
     position: 'absolute',
-    top: -4.22,
-    width: 90.24,
+    right: 1,
+    top: 1,
   },
   editStatusCircle: {
-    borderColor: 'rgba(255,255,255,0.12)',
     borderRadius: 24,
-    borderWidth: 2,
     height: 48,
     overflow: 'hidden',
     width: 48,
@@ -606,7 +1018,6 @@ const styles = StyleSheet.create({
     rowGap: 8,
   },
   header: {
-    height: HEADER_HEIGHT,
     overflow: 'hidden',
   },
   posterArea: {
@@ -619,6 +1030,9 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   posterStageBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  posterStageBackdropSvg: {
     ...StyleSheet.absoluteFillObject,
   },
   posterContent: {
