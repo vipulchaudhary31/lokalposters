@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import Svg, {
@@ -11,9 +12,6 @@ import Svg, {
   Rect,
   Stop,
 } from 'react-native-svg';
-import ActionBar1 from './assets/action-bar/1.svg';
-import ActionBar2 from './assets/action-bar/2.svg';
-import ActionBar4 from './assets/action-bar/4.svg';
 import EditStatusPencil from './assets/action-bar/Vector.svg';
 import BottomNav1 from './assets/bottom-nav/1.svg';
 import BottomNav2 from './assets/bottom-nav/2.svg';
@@ -27,6 +25,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -38,7 +37,11 @@ import {
 } from 'react-native-safe-area-context';
 
 const ASSETS = {
+  downloadButton: require('./assets/action-bar/download.png'),
   editStatusAvatar: require('./assets/action-bar/sample-photo-bg.png'),
+  instagramButton: require('./assets/action-bar/insta.png'),
+  moreButton: require('./assets/action-bar/more.png'),
+  whatsappButton: require('./assets/action-bar/whatsapp.png'),
   feed1: require('./assets/feed/1.png'),
   feed2: require('./assets/feed/2.png'),
   feed3: require('./assets/feed/3.png'),
@@ -49,14 +52,41 @@ const ASSETS = {
   feed8: require('./assets/feed/8.png'),
   feed9: require('./assets/feed/9.png'),
   feed10: require('./assets/feed/10.png'),
+  feed11: require('./assets/feed/11.png'),
 };
 
-const ACTION_BAR_HEIGHT = 96;
+const ACTION_BUTTON_SIZE = 56;
+const ACTION_ITEM_WIDTH = 76;
+const ACTION_ITEM_GAP = 6;
+const ACTION_BAR_HORIZONTAL_PADDING = 12;
+const ACTION_BAR_VERTICAL_PADDING = 12;
+const ACTION_LABEL_LINE_HEIGHT = 16;
+const ACTION_LABEL_GAP = 8;
+const ACTION_BAR_HEIGHT =
+  ACTION_BAR_VERTICAL_PADDING * 2 +
+  ACTION_BUTTON_SIZE +
+  ACTION_LABEL_GAP +
+  ACTION_LABEL_LINE_HEIGHT;
 const BOTTOM_NAV_HEIGHT = 48;
 const MAX_BOTTOM_VISUAL_INSET = 16;
 const SWIPE_DIRECTION_THRESHOLD = 6;
 const CHROME_ANIMATION_DURATION = 280;
 const HEADER_BOTTOM_PADDING = 12;
+const FONT_FAMILY_REGULAR = 'GoogleSans-Regular';
+const FONT_FAMILY_MEDIUM = 'GoogleSans-Medium';
+const FONT_FAMILY_BOLD = 'GoogleSans-Bold';
+
+const GOOGLE_SANS_FONT_MAP = {
+  [FONT_FAMILY_REGULAR]: {
+    uri: 'https://fonts.gstatic.com/s/googlesans/v67/4Ua_rENHsxJlGDuGo1OIlJfC6l_24rlCK1Yo_Iqcsih3SAyH6cAwhX9RFD48TE63OOYKtrwEIKli.ttf',
+  },
+  [FONT_FAMILY_MEDIUM]: {
+    uri: 'https://fonts.gstatic.com/s/googlesans/v67/4Ua_rENHsxJlGDuGo1OIlJfC6l_24rlCK1Yo_Iqcsih3SAyH6cAwhX9RFD48TE63OOYKtrw2IKli.ttf',
+  },
+  [FONT_FAMILY_BOLD]: {
+    uri: 'https://fonts.gstatic.com/s/googlesans/v67/4Ua_rENHsxJlGDuGo1OIlJfC6l_24rlCK1Yo_Iqcsih3SAyH6cAwhX9RFD48TE63OOYKtrzjJ6li.ttf',
+  },
+} as const;
 
 const TOP_FILTERS: Array<{
   active?: boolean;
@@ -72,38 +102,62 @@ const TOP_FILTERS: Array<{
   { icon: 'birthday', label: 'Birthday' },
   { label: 'Motivation' },
   { label: 'Festival' },
-  { label: 'Devotional' },
   { label: 'Good Morning' },
   { chevron: true, label: 'More' },
 ];
 
 const ACTIONS: Array<{
-  customType?: 'edit-status';
+  customType?: 'download' | 'edit-status' | 'instagram' | 'more' | 'whatsapp';
   Icon?: ComponentType<{ height?: number; width?: number }>;
   label: string;
-  size: 48 | 56;
+  size: number;
 }> = [
   {
-    Icon: ActionBar1,
-    label: 'Share',
-    size: 48,
+    customType: 'download',
+    label: 'Download',
+    size: ACTION_BUTTON_SIZE,
   },
   {
-    Icon: ActionBar2,
-    label: 'Download',
-    size: 48,
+    customType: 'whatsapp',
+    label: 'Whatsapp',
+    size: ACTION_BUTTON_SIZE,
+  },
+  {
+    customType: 'instagram',
+    label: 'Instagram',
+    size: ACTION_BUTTON_SIZE,
   },
   {
     customType: 'edit-status',
-    label: 'Edit Status',
-    size: 48,
+    label: 'Edit',
+    size: ACTION_BUTTON_SIZE,
   },
   {
-    Icon: ActionBar4,
+    customType: 'more',
     label: 'More',
-    size: 48,
+    size: ACTION_BUTTON_SIZE,
   },
 ];
+
+function getGoogleSansFontFamily(
+  fontsLoaded: boolean,
+  fontsError: Error | null | undefined,
+  variant: 'regular' | 'medium' | 'bold',
+) {
+  if (!fontsLoaded || fontsError) {
+    return undefined;
+  }
+
+  if (variant === 'bold') {
+    return FONT_FAMILY_BOLD;
+  }
+
+  if (variant === 'medium') {
+    return FONT_FAMILY_MEDIUM;
+  }
+
+  return FONT_FAMILY_REGULAR;
+}
 
 const NAV_ITEMS: Array<{
   Icon: typeof BottomNav1;
@@ -116,6 +170,7 @@ const NAV_ITEMS: Array<{
 ];
 
 type PosterStagePalette = {
+  auraPalette: AuraPalette;
   dominantHex: string;
 };
 
@@ -126,6 +181,7 @@ type FeedItem = {
 };
 
 interface AuraParams {
+  intensity: number;
   gradientMidOpacity: number;
   gradientMidPoint: number;
   glowOpacity: number;
@@ -153,8 +209,8 @@ interface AuraSpeckle {
   y: number;
 }
 
-const AURA_INTENSITY = 0.6;
-const AURA_PARAMS: AuraParams = {
+const DEFAULT_AURA_PARAMS: AuraParams = {
+  intensity: 0.6,
   gradientMidOpacity: 0.72,
   gradientMidPoint: 44,
   glowOpacity: 0.5,
@@ -166,6 +222,104 @@ const AURA_PARAMS: AuraParams = {
   shadowOpacity: 0.18,
   shadowColorMatch: 0.3,
 };
+
+const AURA_CONTROL_SPECS: Array<{
+  formatValue?: (value: number) => string;
+  key: keyof AuraParams;
+  label: string;
+  max: number;
+  min: number;
+  step: number;
+}> = [
+  {
+    formatValue: (value) => value.toFixed(2),
+    key: 'intensity',
+    label: 'Aura Intensity',
+    max: 1.2,
+    min: 0,
+    step: 0.02,
+  },
+  {
+    formatValue: (value) => `${Math.round(value * 100)}%`,
+    key: 'gradientMidOpacity',
+    label: 'Gradient Mid Opacity',
+    max: 1,
+    min: 0,
+    step: 0.02,
+  },
+  {
+    formatValue: (value) => `${Math.round(value)}%`,
+    key: 'gradientMidPoint',
+    label: 'Gradient Mid Point',
+    max: 100,
+    min: 0,
+    step: 1,
+  },
+  {
+    formatValue: (value) => `${Math.round(value * 100)}%`,
+    key: 'glowOpacity',
+    label: 'Center Glow',
+    max: 1,
+    min: 0,
+    step: 0.02,
+  },
+  {
+    formatValue: (value) => `${Math.round(value * 100)}%`,
+    key: 'accentBlobOpacity',
+    label: 'Accent Blob Opacity',
+    max: 1,
+    min: 0,
+    step: 0.02,
+  },
+  {
+    formatValue: (value) => `${Math.round(value)} px`,
+    key: 'accentBlobBlur',
+    label: 'Accent Blob Spread',
+    max: 160,
+    min: 20,
+    step: 2,
+  },
+  {
+    formatValue: (value) => `${Math.round(value * 100)}%`,
+    key: 'vignetteOpacity',
+    label: 'Vignette',
+    max: 0.6,
+    min: 0,
+    step: 0.01,
+  },
+  {
+    formatValue: (value) => `${Math.round(value)} px`,
+    key: 'shadowY',
+    label: 'Poster Shadow Y',
+    max: 48,
+    min: 0,
+    step: 1,
+  },
+  {
+    formatValue: (value) => `${Math.round(value)} px`,
+    key: 'shadowBlur',
+    label: 'Poster Shadow Blur',
+    max: 120,
+    min: 0,
+    step: 2,
+  },
+  {
+    formatValue: (value) => `${Math.round(value * 100)}%`,
+    key: 'shadowOpacity',
+    label: 'Poster Shadow Opacity',
+    max: 0.5,
+    min: 0,
+    step: 0.01,
+  },
+  {
+    formatValue: (value) => `${Math.round(value * 100)}%`,
+    key: 'shadowColorMatch',
+    label: 'Shadow Color Match',
+    max: 1,
+    min: 0,
+    step: 0.02,
+  },
+];
 
 function normalizeHex(hex: string) {
   const normalizedHex = hex.replace('#', '');
@@ -226,6 +380,10 @@ function clampRgb(value: number) {
   return Math.max(0, Math.min(255, Math.round(value)));
 }
 
+function clampNumber(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
 function rgba(
   [red, green, blue]: [number, number, number],
   opacity: number,
@@ -266,6 +424,22 @@ function buildAuraPalette(dominantHex: string): AuraPalette {
   };
 }
 
+const auraPaletteCache = new Map<string, AuraPalette>();
+const auraSpecklesCache = new Map<string, AuraSpeckle[]>();
+
+function getAuraPalette(dominantHex: string) {
+  const cachedPalette = auraPaletteCache.get(dominantHex);
+
+  if (cachedPalette) {
+    return cachedPalette;
+  }
+
+  const nextPalette = buildAuraPalette(dominantHex);
+  auraPaletteCache.set(dominantHex, nextPalette);
+
+  return nextPalette;
+}
+
 function createSeededRandom(seedSource: string) {
   let seed = 0;
 
@@ -304,77 +478,52 @@ function buildAuraSpeckles(
   return speckles;
 }
 
+function getAuraSpeckles(
+  dominantHex: string,
+  palette: AuraPalette,
+  width: number,
+  height: number,
+) {
+  const cacheKey = `${dominantHex}-${Math.round(width)}x${Math.round(height)}`;
+  const cachedSpeckles = auraSpecklesCache.get(cacheKey);
+
+  if (cachedSpeckles) {
+    return cachedSpeckles;
+  }
+
+  const nextSpeckles = buildAuraSpeckles(dominantHex, palette, width, height);
+  auraSpecklesCache.set(cacheKey, nextSpeckles);
+
+  return nextSpeckles;
+}
+
+function createFeedItem(
+  key: string,
+  dominantHex: string,
+  source: number,
+): FeedItem {
+  return {
+    key,
+    palette: {
+      auraPalette: getAuraPalette(dominantHex),
+      dominantHex,
+    },
+    source,
+  };
+}
+
 const FEED_ITEMS: FeedItem[] = [
-  {
-    key: 'feed-1',
-    palette: {
-      dominantHex: '#E5E4DE',
-    },
-    source: ASSETS.feed1,
-  },
-  {
-    key: 'feed-2',
-    palette: {
-      dominantHex: '#621C4D',
-    },
-    source: ASSETS.feed2,
-  },
-  {
-    key: 'feed-3',
-    palette: {
-      dominantHex: '#6E1B56',
-    },
-    source: ASSETS.feed3,
-  },
-  {
-    key: 'feed-4',
-    palette: {
-      dominantHex: '#E4DFC9',
-    },
-    source: ASSETS.feed4,
-  },
-  {
-    key: 'feed-5',
-    palette: {
-      dominantHex: '#432918',
-    },
-    source: ASSETS.feed5,
-  },
-  {
-    key: 'feed-6',
-    palette: {
-      dominantHex: '#834E07',
-    },
-    source: ASSETS.feed6,
-  },
-  {
-    key: 'feed-7',
-    palette: {
-      dominantHex: '#F8DEBC',
-    },
-    source: ASSETS.feed7,
-  },
-  {
-    key: 'feed-8',
-    palette: {
-      dominantHex: '#02234E',
-    },
-    source: ASSETS.feed8,
-  },
-  {
-    key: 'feed-9',
-    palette: {
-      dominantHex: '#EDDFD0',
-    },
-    source: ASSETS.feed9,
-  },
-  {
-    key: 'feed-10',
-    palette: {
-      dominantHex: '#E3D6BA',
-    },
-    source: ASSETS.feed10,
-  },
+  createFeedItem('feed-1', '#E5E4DE', ASSETS.feed1),
+  createFeedItem('feed-2', '#621C4D', ASSETS.feed2),
+  createFeedItem('feed-3', '#6E1B56', ASSETS.feed3),
+  createFeedItem('feed-4', '#74BABE', ASSETS.feed4),
+  createFeedItem('feed-5', '#432918', ASSETS.feed5),
+  createFeedItem('feed-6', '#834E07', ASSETS.feed6),
+  createFeedItem('feed-7', '#F8DEBC', ASSETS.feed7),
+  createFeedItem('feed-8', '#02234E', ASSETS.feed8),
+  createFeedItem('feed-9', '#EDDFD0', ASSETS.feed9),
+  createFeedItem('feed-10', '#E3D6BA', ASSETS.feed10),
+  createFeedItem('feed-11', '#E4DFC9', ASSETS.feed11),
 ];
 
 const firstFeedItem = FEED_ITEMS[0];
@@ -383,30 +532,43 @@ const LOOPED_FEED_ITEMS = firstFeedItem
   : FEED_ITEMS;
 
 function PosterStageBackdrop({
+  auraParams,
+  auraPalette,
   dominantHex,
   height,
   width,
 }: {
+  auraParams: AuraParams;
+  auraPalette: AuraPalette;
   dominantHex: string;
   height: number;
   width: number;
 }) {
-  const palette = buildAuraPalette(dominantHex);
+  const palette = auraPalette;
   const baseColor = hexToRgb(mixHex(dominantHex, '#120D14', 0.26));
   const topShadeColor = hexToRgb(mixHex(dominantHex, '#17111A', 0.3));
   const edgeShadeColor = hexToRgb(mixHex(dominantHex, '#0B0810', 0.16));
   const bottomLiftColor = hexToRgb(mixHex(dominantHex, '#2A1E2F', 0.42));
-  const speckles = buildAuraSpeckles(
+  const speckles = getAuraSpeckles(
     dominantHex,
     palette,
     width,
     height,
   );
   const idBase = `poster-stage-aura-${dominantHex.replace('#', '')}`;
-  const centerGlowRadius = Math.max(width * 0.84, height * 0.48);
-  const topBlobRadius = Math.max(width * 0.74, height * 0.34);
-  const bottomBlobRadius = Math.max(width * 0.66, height * 0.28);
-  const sideGlowRadius = Math.max(width * 0.7, height * 0.36);
+  const intensityScale = DEFAULT_AURA_PARAMS.intensity
+    ? auraParams.intensity / DEFAULT_AURA_PARAMS.intensity
+    : 1;
+  const blobSpreadScale = DEFAULT_AURA_PARAMS.accentBlobBlur
+    ? auraParams.accentBlobBlur / DEFAULT_AURA_PARAMS.accentBlobBlur
+    : 1;
+  const centerGlowRadius =
+    Math.max(width * 0.84, height * 0.48) * (0.92 + intensityScale * 0.08);
+  const topBlobRadius = Math.max(width * 0.74, height * 0.34) * blobSpreadScale;
+  const bottomBlobRadius =
+    Math.max(width * 0.66, height * 0.28) * blobSpreadScale;
+  const sideGlowRadius =
+    Math.max(width * 0.7, height * 0.36) * (0.94 + blobSpreadScale * 0.06);
   const vignetteRadius = Math.max(width * 1.02, height * 0.8);
 
   return (
@@ -435,9 +597,9 @@ function PosterStageBackdrop({
           >
             <Stop offset="0%" stopColor={rgb(topShadeColor)} stopOpacity="1" />
             <Stop
-              offset={`${AURA_PARAMS.gradientMidPoint}%`}
+              offset={`${auraParams.gradientMidPoint}%`}
               stopColor={rgb(baseColor)}
-              stopOpacity={AURA_PARAMS.gradientMidOpacity}
+              stopOpacity={auraParams.gradientMidOpacity}
             />
             <Stop offset="100%" stopColor={rgb(bottomLiftColor)} stopOpacity="1" />
           </SvgLinearGradient>
@@ -462,7 +624,7 @@ function PosterStageBackdrop({
             <Stop
               offset="0%"
               stopColor={rgb(palette.vibrant)}
-              stopOpacity={AURA_PARAMS.glowOpacity}
+              stopOpacity={clampNumber(auraParams.glowOpacity * intensityScale, 0, 1)}
             />
             <Stop offset="58%" stopColor={rgb(palette.vibrant)} stopOpacity="0.14" />
             <Stop offset="100%" stopColor={rgb(palette.vibrant)} stopOpacity="0" />
@@ -477,12 +639,12 @@ function PosterStageBackdrop({
             <Stop
               offset="0%"
               stopColor={rgb(palette.vibrant)}
-              stopOpacity={AURA_PARAMS.accentBlobOpacity}
+              stopOpacity={clampNumber(auraParams.accentBlobOpacity * intensityScale, 0, 1)}
             />
             <Stop
               offset="54%"
               stopColor={rgb(palette.vibrant)}
-              stopOpacity={AURA_PARAMS.accentBlobOpacity * 0.24}
+              stopOpacity={clampNumber(auraParams.accentBlobOpacity * intensityScale * 0.24, 0, 1)}
             />
             <Stop offset="100%" stopColor={rgb(palette.vibrant)} stopOpacity="0" />
           </RadialGradient>
@@ -496,12 +658,12 @@ function PosterStageBackdrop({
             <Stop
               offset="0%"
               stopColor={rgb(palette.dominant)}
-              stopOpacity={AURA_PARAMS.accentBlobOpacity * 0.6}
+              stopOpacity={clampNumber(auraParams.accentBlobOpacity * intensityScale * 0.6, 0, 1)}
             />
             <Stop
               offset="56%"
               stopColor={rgb(palette.dominant)}
-              stopOpacity={AURA_PARAMS.accentBlobOpacity * 0.18}
+              stopOpacity={clampNumber(auraParams.accentBlobOpacity * intensityScale * 0.18, 0, 1)}
             />
             <Stop offset="100%" stopColor={rgb(palette.dominant)} stopOpacity="0" />
           </RadialGradient>
@@ -527,7 +689,7 @@ function PosterStageBackdrop({
             <Stop
               offset="100%"
               stopColor="#000000"
-              stopOpacity={AURA_PARAMS.vignetteOpacity}
+              stopOpacity={clampNumber(auraParams.vignetteOpacity * intensityScale, 0, 1)}
             />
           </RadialGradient>
           <SvgLinearGradient
@@ -555,7 +717,7 @@ function PosterStageBackdrop({
             cx={speckle.x}
             cy={speckle.y}
             fill={rgb(speckle.color)}
-            opacity={speckle.opacity}
+            opacity={clampNumber(speckle.opacity * (0.88 + intensityScale * 0.12), 0, 1)}
             r={speckle.radius}
           />
         ))}
@@ -568,11 +730,15 @@ function PosterStageBackdrop({
 function FilterChip({
   active = false,
   chevron = false,
+  fontsError,
+  fontsLoaded,
   icon,
   label,
 }: {
   active?: boolean;
   chevron?: boolean;
+  fontsError?: Error | null;
+  fontsLoaded?: boolean;
   icon?: 'birthday' | 'trending';
   label: string;
 }) {
@@ -589,7 +755,19 @@ function FilterChip({
       {icon === 'birthday' ? (
         <FontAwesome5 color="rgba(255,255,255,0.75)" name="birthday-cake" size={14} />
       ) : null}
-      <Text style={[styles.filterChipText, active ? styles.filterChipTextActive : styles.filterChipTextInactive]}>
+      <Text
+        style={[
+          styles.filterChipText,
+          {
+            fontFamily: getGoogleSansFontFamily(
+              !!fontsLoaded,
+              fontsError,
+              active ? 'medium' : 'regular',
+            ),
+          },
+          active ? styles.filterChipTextActive : styles.filterChipTextInactive,
+        ]}
+      >
         {label}
       </Text>
       {chevron ? <Ionicons color="rgba(255,255,255,0.75)" name="chevron-down" size={12} /> : null}
@@ -599,31 +777,297 @@ function FilterChip({
 
 function ActionButton({
   customType,
+  fontsError,
+  fontsLoaded,
   Icon,
   label,
+  onPress,
   size,
 }: {
-  customType?: 'edit-status';
+  customType?: 'download' | 'edit-status' | 'instagram' | 'more' | 'whatsapp';
+  fontsError?: Error | null;
+  fontsLoaded?: boolean;
   Icon?: ComponentType<{ height?: number; width?: number }>;
   label: string;
-  size: 48 | 56;
+  onPress?: () => void;
+  size: number;
 }) {
   return (
-    <Pressable style={styles.actionItem}>
-      <View
-        style={[
-          styles.actionIconWrap,
-          { height: size, width: size },
-        ]}
-      >
-        {customType === 'edit-status' ? (
-          <EditStatusIcon />
-        ) : Icon ? (
-          <Icon height={size} width={size} />
-        ) : null}
+    <Pressable onPress={onPress} style={styles.actionItem}>
+      <View style={styles.actionItemContent}>
+        <View
+          style={[
+            styles.actionIconWrap,
+            { height: size, width: size },
+          ]}
+        >
+          {customType === 'download' ? (
+            <ActionPngIcon source={ASSETS.downloadButton} />
+          ) : customType === 'edit-status' ? (
+            <EditStatusIcon />
+          ) : customType === 'instagram' ? (
+            <InstagramIconButton />
+          ) : customType === 'more' ? (
+            <ActionPngIcon source={ASSETS.moreButton} />
+          ) : customType === 'whatsapp' ? (
+            <ActionPngIcon source={ASSETS.whatsappButton} />
+          ) : Icon ? (
+            <Icon height={size} width={size} />
+          ) : null}
+        </View>
+        <Text
+          style={[
+            styles.actionLabel,
+            {
+              fontFamily: getGoogleSansFontFamily(
+                !!fontsLoaded,
+                fontsError,
+                'regular',
+              ),
+            },
+          ]}
+        >
+          {label}
+        </Text>
       </View>
-      <Text style={styles.actionLabel}>{label}</Text>
     </Pressable>
+  );
+}
+
+function ActionPngIcon({
+  source,
+  style,
+}: {
+  source: number;
+  style?: object;
+}) {
+  return (
+    <Image
+      contentFit="contain"
+      source={source}
+      style={[styles.actionPngIcon, style]}
+    />
+  );
+}
+
+function InstagramIconButton() {
+  return (
+    <Image
+      contentFit="contain"
+      source={ASSETS.instagramButton}
+      style={styles.instagramButtonImage}
+    />
+  );
+}
+
+function AuraControlRow({
+  fontsError,
+  fontsLoaded,
+  label,
+  max,
+  min,
+  onChange,
+  step,
+  value,
+  valueLabel,
+}: {
+  fontsError?: Error | null;
+  fontsLoaded?: boolean;
+  label: string;
+  max: number;
+  min: number;
+  onChange: (value: number) => void;
+  step: number;
+  value: number;
+  valueLabel: string;
+}) {
+  const segmentCount = 21;
+  const decreaseDisabled = value <= min;
+  const increaseDisabled = value >= max;
+
+  return (
+    <View style={styles.controlRow}>
+      <View style={styles.controlRowHeader}>
+        <Text
+          style={[
+            styles.controlLabel,
+            {
+              fontFamily: getGoogleSansFontFamily(
+                !!fontsLoaded,
+                fontsError,
+                'medium',
+              ),
+            },
+          ]}
+        >
+          {label}
+        </Text>
+        <Text
+          style={[
+            styles.controlValue,
+            {
+              fontFamily: getGoogleSansFontFamily(
+                !!fontsLoaded,
+                fontsError,
+                'regular',
+              ),
+            },
+          ]}
+        >
+          {valueLabel}
+        </Text>
+      </View>
+      <View style={styles.controlRowBody}>
+        <Pressable
+          disabled={decreaseDisabled}
+          onPress={() => onChange(value - step)}
+          style={[
+            styles.controlAdjustButton,
+            decreaseDisabled && styles.controlAdjustButtonDisabled,
+          ]}
+        >
+          <Ionicons color="#FFFFFF" name="remove" size={16} />
+        </Pressable>
+        <View style={styles.controlTrack}>
+          {Array.from({ length: segmentCount }).map((_, index) => {
+            const ratio = index / (segmentCount - 1);
+            const segmentValue = min + (max - min) * ratio;
+            const active = value >= segmentValue - step / 2;
+
+            return (
+              <Pressable
+                key={`${label}-${index}`}
+                onPress={() => onChange(segmentValue)}
+                style={[
+                  styles.controlTrackSegment,
+                  active && styles.controlTrackSegmentActive,
+                ]}
+              />
+            );
+          })}
+        </View>
+        <Pressable
+          disabled={increaseDisabled}
+          onPress={() => onChange(value + step)}
+          style={[
+            styles.controlAdjustButton,
+            increaseDisabled && styles.controlAdjustButtonDisabled,
+          ]}
+        >
+          <Ionicons color="#FFFFFF" name="add" size={16} />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function AuraControlPanel({
+  auraParams,
+  bottomOffset,
+  fontsError,
+  fontsLoaded,
+  onClose,
+  onReset,
+  onUpdateParam,
+}: {
+  auraParams: AuraParams;
+  bottomOffset: number;
+  fontsError?: Error | null;
+  fontsLoaded?: boolean;
+  onClose: () => void;
+  onReset: () => void;
+  onUpdateParam: <K extends keyof AuraParams>(key: K, value: AuraParams[K]) => void;
+}) {
+  return (
+    <View pointerEvents="box-none" style={styles.controlPanelRoot}>
+      <Pressable onPress={onClose} style={styles.controlPanelBackdrop} />
+      <View style={[styles.controlPanel, { bottom: bottomOffset }]}>
+        <View style={styles.controlPanelHeader}>
+          <View>
+            <Text
+              style={[
+                styles.controlPanelEyebrow,
+                {
+                  fontFamily: getGoogleSansFontFamily(
+                    !!fontsLoaded,
+                    fontsError,
+                    'medium',
+                  ),
+                },
+              ]}
+            >
+              Poster Aura
+            </Text>
+            <Text
+              style={[
+                styles.controlPanelTitle,
+                {
+                  fontFamily: getGoogleSansFontFamily(
+                    !!fontsLoaded,
+                    fontsError,
+                    'bold',
+                  ),
+                },
+              ]}
+            >
+              Gradient Controls
+            </Text>
+          </View>
+          <View style={styles.controlPanelActions}>
+            <Pressable onPress={onReset} style={styles.controlPanelAction}>
+              <Text
+                style={[
+                  styles.controlPanelActionText,
+                  {
+                    fontFamily: getGoogleSansFontFamily(
+                      !!fontsLoaded,
+                      fontsError,
+                      'medium',
+                    ),
+                  },
+                ]}
+              >
+                Reset
+              </Text>
+            </Pressable>
+            <Pressable onPress={onClose} style={styles.controlPanelClose}>
+              <Ionicons color="#FFFFFF" name="close" size={18} />
+            </Pressable>
+          </View>
+        </View>
+        <ScrollView
+          contentContainerStyle={styles.controlPanelContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {AURA_CONTROL_SPECS.map((control) => (
+            <AuraControlRow
+              fontsError={fontsError}
+              fontsLoaded={fontsLoaded}
+              key={control.key}
+              label={control.label}
+              max={control.max}
+              min={control.min}
+              onChange={(nextValue) => {
+                const steppedValue =
+                  Math.round(nextValue / control.step) * control.step;
+
+                onUpdateParam(
+                  control.key,
+                  clampNumber(steppedValue, control.min, control.max),
+                );
+              }}
+              step={control.step}
+              value={auraParams[control.key]}
+              valueLabel={
+                control.formatValue
+                  ? control.formatValue(auraParams[control.key])
+                  : `${auraParams[control.key]}`
+              }
+            />
+          ))}
+        </ScrollView>
+      </View>
+    </View>
   );
 }
 
@@ -662,7 +1106,16 @@ function BottomNavItem({
   );
 }
 
+function ActionBarSpacer() {
+  return <View style={styles.actionBarSpacer} />;
+}
+
+function normalizeFeedIndex(index: number) {
+  return ((index % FEED_ITEMS.length) + FEED_ITEMS.length) % FEED_ITEMS.length;
+}
+
 function FeedScreen() {
+  const [fontsLoaded, fontsError] = useFonts(GOOGLE_SANS_FONT_MAP);
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const feedListRef = useRef<FlatList<FeedItem>>(null);
@@ -672,6 +1125,8 @@ function FeedScreen() {
   const lastScrollOffsetRef = useRef(0);
   const [filterWrapHeight, setFilterWrapHeight] = useState(0);
   const [activeFeedIndex, setActiveFeedIndex] = useState(0);
+  const [auraParams, setAuraParams] = useState(DEFAULT_AURA_PARAMS);
+  const [isControlPanelOpen, setIsControlPanelOpen] = useState(false);
   const resolvedHeaderHeight =
     insets.top + 8 + filterWrapHeight + HEADER_BOTTOM_PADDING;
   const resolvedBottomInset = Math.min(insets.bottom, MAX_BOTTOM_VISUAL_INSET);
@@ -703,10 +1158,43 @@ function FeedScreen() {
     outputRange: [resolvedBottomInset, 0],
   });
 
-  const syncActiveFeedIndex = (offsetY: number) => {
+  useEffect(() => {
+    if (width <= 0 || posterAreaHeight <= 0) {
+      return;
+    }
+
+    const backdropHeight = resolvedHeaderHeight + posterAreaHeight;
+
+    FEED_ITEMS.forEach((item) => {
+      getAuraSpeckles(
+        item.palette.dominantHex,
+        item.palette.auraPalette,
+        width,
+        backdropHeight,
+      );
+    });
+  }, [posterAreaHeight, resolvedHeaderHeight, width]);
+
+  const commitActiveFeedIndex = (offsetY: number) => {
     const nextIndex = Math.round(offsetY / posterAreaHeight);
-    const normalizedIndex =
-      ((nextIndex % FEED_ITEMS.length) + FEED_ITEMS.length) % FEED_ITEMS.length;
+    const normalizedIndex = normalizeFeedIndex(nextIndex);
+
+    if (normalizedIndex === activeFeedIndexRef.current) {
+      return;
+    }
+
+    activeFeedIndexRef.current = normalizedIndex;
+    setActiveFeedIndex(normalizedIndex);
+  };
+
+  const syncActiveFeedIndexWithDestination = (offsetY: number) => {
+    if (posterAreaHeight <= 0) {
+      return;
+    }
+
+    const normalizedIndex = normalizeFeedIndex(
+      Math.round(offsetY / posterAreaHeight),
+    );
 
     if (normalizedIndex === activeFeedIndexRef.current) {
       return;
@@ -744,14 +1232,29 @@ function FeedScreen() {
       setChromeVisible(true);
     }
 
-    syncActiveFeedIndex(offsetY);
+    syncActiveFeedIndexWithDestination(offsetY);
     lastScrollOffsetRef.current = offsetY;
+  };
+
+  const handleFeedScrollEndDrag = ({
+    nativeEvent,
+  }: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const velocityY = nativeEvent.velocity?.y ?? 0;
+
+    if (Math.abs(velocityY) > 0.05) {
+      return;
+    }
+
+    commitActiveFeedIndex(nativeEvent.contentOffset.y);
   };
 
   const handleFeedMomentumEnd = ({
     nativeEvent,
   }: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const nextIndex = Math.round(nativeEvent.contentOffset.y / posterAreaHeight);
+    const offsetY = nativeEvent.contentOffset.y;
+    const nextIndex = Math.round(offsetY / posterAreaHeight);
+
+    commitActiveFeedIndex(offsetY);
 
     if (nextIndex !== LOOPED_FEED_ITEMS.length - 1) {
       return;
@@ -775,12 +1278,33 @@ function FeedScreen() {
     setFilterWrapHeight(nextHeight);
   };
 
+  const updateAuraParam = <K extends keyof AuraParams>(
+    key: K,
+    value: AuraParams[K],
+  ) => {
+    setAuraParams((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  };
+
+  const openControlPanel = () => {
+    setChromeVisible(true);
+    setIsControlPanelOpen(true);
+  };
+
+  const closeControlPanel = () => {
+    setIsControlPanelOpen(false);
+  };
+
   return (
     <View style={styles.screen}>
       <StatusBar hidden={false} style="light" />
 
       <View style={styles.screenContent}>
         <PosterStageBackdrop
+          auraParams={auraParams}
+          auraPalette={activeFeedItem.palette.auraPalette}
           dominantHex={activeFeedItem.palette.dominantHex}
           height={resolvedHeaderHeight + posterAreaHeight}
           width={width}
@@ -796,7 +1320,12 @@ function FeedScreen() {
         >
           <View onLayout={handleFilterWrapLayout} style={styles.filterWrap}>
             {TOP_FILTERS.map((filter) => (
-              <FilterChip key={filter.label} {...filter} />
+              <FilterChip
+                key={filter.label}
+                {...filter}
+                fontsError={fontsError}
+                fontsLoaded={fontsLoaded}
+              />
             ))}
           </View>
         </View>
@@ -814,11 +1343,17 @@ function FeedScreen() {
             onMomentumScrollEnd={handleFeedMomentumEnd}
             onScroll={handleFeedScroll}
             onScrollBeginDrag={handleFeedScroll}
+            onScrollEndDrag={handleFeedScrollEndDrag}
             pagingEnabled
             renderItem={({ item }) => (
               <View style={[styles.posterFrame, { height: posterAreaHeight, width }]}>
                 <Animated.View
-                  style={[styles.posterContent, { paddingBottom: posterBottomInset }]}
+                  style={[
+                    styles.posterContent,
+                    {
+                      paddingBottom: posterBottomInset,
+                    },
+                  ]}
                 >
                   <Image
                     contentFit="contain"
@@ -865,16 +1400,42 @@ function FeedScreen() {
           },
         ]}
       >
-        <View style={styles.actionBar}>
-          {ACTIONS.map((action) => (
-            <ActionButton key={action.label} {...action} />
-          ))}
-        </View>
+        <FlatList
+          automaticallyAdjustContentInsets={false}
+          contentContainerStyle={styles.actionBarContent}
+          contentInsetAdjustmentBehavior="never"
+          data={ACTIONS}
+          horizontal
+          ItemSeparatorComponent={ActionBarSpacer}
+          keyExtractor={(item) => item.label}
+          renderItem={({ item: action }) => (
+            <ActionButton
+              {...action}
+              fontsError={fontsError}
+              fontsLoaded={fontsLoaded}
+              onPress={action.label === 'More' ? openControlPanel : undefined}
+            />
+          )}
+          showsHorizontalScrollIndicator={false}
+          style={styles.actionBar}
+        />
         <Animated.View
           pointerEvents="none"
           style={[styles.bottomNavSeparator, { opacity: chromeVisibility }]}
         />
       </Animated.View>
+
+      {isControlPanelOpen ? (
+        <AuraControlPanel
+          auraParams={auraParams}
+          bottomOffset={resolvedActionBarHeight + resolvedBottomNavHeight}
+          fontsError={fontsError}
+          fontsLoaded={fontsLoaded}
+          onClose={closeControlPanel}
+          onReset={() => setAuraParams(DEFAULT_AURA_PARAMS)}
+          onUpdateParam={updateAuraParam}
+        />
+      ) : null}
     </View>
   );
 }
@@ -889,31 +1450,53 @@ export default function App() {
 
 const styles = StyleSheet.create({
   actionBar: {
-    alignItems: 'center',
     backgroundColor: '#000000',
-    flexDirection: 'row',
     height: ACTION_BAR_HEIGHT,
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    paddingTop: 12,
+  },
+  actionCircleBase: {
+    alignItems: 'center',
+    borderRadius: ACTION_BUTTON_SIZE / 2,
+    height: ACTION_BUTTON_SIZE,
+    justifyContent: 'center',
+    overflow: 'hidden',
+    width: ACTION_BUTTON_SIZE,
+  },
+  actionBarContent: {
+    alignItems: 'center',
+    paddingHorizontal: ACTION_BAR_HORIZONTAL_PADDING,
+    paddingBottom: ACTION_BAR_VERTICAL_PADDING,
+    paddingTop: ACTION_BAR_VERTICAL_PADDING,
+  },
+  actionBarSpacer: {
+    width: ACTION_ITEM_GAP,
   },
   actionItem: {
     alignItems: 'center',
-    gap: 8,
-    width: 72,
+    justifyContent: 'center',
+    width: ACTION_ITEM_WIDTH,
+  },
+  actionItemContent: {
+    alignItems: 'center',
+    gap: ACTION_LABEL_GAP,
+    width: '100%',
   },
   actionIconWrap: {
     alignItems: 'center',
+    height: ACTION_BUTTON_SIZE,
     justifyContent: 'center',
     overflow: 'visible',
+    width: ACTION_BUTTON_SIZE,
   },
   actionLabel: {
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '400',
-    lineHeight: 16,
+    lineHeight: ACTION_LABEL_LINE_HEIGHT,
     textAlign: 'center',
+  },
+  actionPngIcon: {
+    height: ACTION_BUTTON_SIZE,
+    width: ACTION_BUTTON_SIZE,
   },
   editStatusAvatar: {
     height: '100%',
@@ -935,15 +1518,15 @@ const styles = StyleSheet.create({
     top: 1,
   },
   editStatusCircle: {
-    borderRadius: 24,
-    height: 48,
+    borderRadius: ACTION_BUTTON_SIZE / 2,
+    height: ACTION_BUTTON_SIZE,
     overflow: 'hidden',
-    width: 48,
+    width: ACTION_BUTTON_SIZE,
   },
   editStatusIcon: {
-    height: 48,
+    height: ACTION_BUTTON_SIZE,
     overflow: 'visible',
-    width: 48,
+    width: ACTION_BUTTON_SIZE,
   },
   editStatusPencil: {
     alignItems: 'center',
@@ -951,6 +1534,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'absolute',
     right: -8,
+  },
+  instagramBorder: {
+    ...StyleSheet.absoluteFillObject,
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: ACTION_BUTTON_SIZE / 2,
+    borderWidth: 2,
+  },
+  instagramButton: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4.33 },
+    shadowOpacity: 0.3,
+    shadowRadius: 26,
+  },
+  instagramButtonImage: {
+    height: ACTION_BUTTON_SIZE,
+    width: ACTION_BUTTON_SIZE,
   },
   bottomNav: {
     flexDirection: 'row',
@@ -974,6 +1573,133 @@ const styles = StyleSheet.create({
   bottomNavSeparator: {
     backgroundColor: '#1A1A1A',
     height: 1,
+  },
+  controlAdjustButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 999,
+    height: 30,
+    justifyContent: 'center',
+    width: 30,
+  },
+  controlAdjustButtonDisabled: {
+    opacity: 0.35,
+  },
+  controlLabel: {
+    color: '#FFFFFF',
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 18,
+    paddingRight: 10,
+  },
+  controlPanel: {
+    backgroundColor: 'rgba(12,12,14,0.98)',
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    left: 12,
+    maxHeight: '62%',
+    overflow: 'hidden',
+    position: 'absolute',
+    right: 12,
+  },
+  controlPanelAction: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  controlPanelActionText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 16,
+  },
+  controlPanelActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  controlPanelBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.32)',
+  },
+  controlPanelClose: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 999,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
+  controlPanelContent: {
+    gap: 14,
+    paddingBottom: 28,
+    paddingHorizontal: 18,
+    paddingTop: 14,
+  },
+  controlPanelEyebrow: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+    lineHeight: 14,
+    textTransform: 'uppercase',
+  },
+  controlPanelHeader: {
+    alignItems: 'center',
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+  },
+  controlPanelRoot: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+  },
+  controlPanelTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 22,
+    marginTop: 4,
+  },
+  controlRow: {
+    gap: 10,
+  },
+  controlRowBody: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  controlRowHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  controlTrack: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  controlTrackSegment: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 999,
+    flex: 1,
+    height: 24,
+  },
+  controlTrackSegmentActive: {
+    backgroundColor: '#FFFFFF',
+  },
+  controlValue: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 13,
+    fontVariant: ['tabular-nums'],
+    lineHeight: 18,
   },
   screenContent: {
     flex: 1,
