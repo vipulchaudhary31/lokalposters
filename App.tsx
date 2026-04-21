@@ -24,6 +24,7 @@ import {
   LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -75,6 +76,7 @@ const HEADER_BOTTOM_PADDING = 12;
 const FONT_FAMILY_REGULAR = 'GoogleSans-Regular';
 const FONT_FAMILY_MEDIUM = 'GoogleSans-Medium';
 const FONT_FAMILY_BOLD = 'GoogleSans-Bold';
+const ANDROID_FEED_DECELERATION_RATE = 0.998;
 
 const GOOGLE_SANS_FONT_MAP = {
   [FONT_FAMILY_REGULAR]: {
@@ -1333,7 +1335,12 @@ function FeedScreen() {
         <View style={[styles.posterArea, { height: posterAreaHeight }]}>
           <FlatList
             data={LOOPED_FEED_ITEMS}
-            decelerationRate="fast"
+            decelerationRate={
+              Platform.OS === 'android'
+                ? ANDROID_FEED_DECELERATION_RATE
+                : 'fast'
+            }
+            disableIntervalMomentum
             getItemLayout={(_, index) => ({
               index,
               length: posterAreaHeight,
@@ -1344,7 +1351,6 @@ function FeedScreen() {
             onScroll={handleFeedScroll}
             onScrollBeginDrag={handleFeedScroll}
             onScrollEndDrag={handleFeedScrollEndDrag}
-            pagingEnabled
             renderItem={({ item }) => (
               <View style={[styles.posterFrame, { height: posterAreaHeight, width }]}>
                 <Animated.View
