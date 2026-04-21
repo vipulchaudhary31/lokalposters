@@ -26,7 +26,6 @@ import {
   type NativeSyntheticEvent,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -224,104 +223,6 @@ const DEFAULT_AURA_PARAMS: AuraParams = {
   shadowOpacity: 0.18,
   shadowColorMatch: 0.3,
 };
-
-const AURA_CONTROL_SPECS: Array<{
-  formatValue?: (value: number) => string;
-  key: keyof AuraParams;
-  label: string;
-  max: number;
-  min: number;
-  step: number;
-}> = [
-  {
-    formatValue: (value) => value.toFixed(2),
-    key: 'intensity',
-    label: 'Aura Intensity',
-    max: 1.2,
-    min: 0,
-    step: 0.02,
-  },
-  {
-    formatValue: (value) => `${Math.round(value * 100)}%`,
-    key: 'gradientMidOpacity',
-    label: 'Gradient Mid Opacity',
-    max: 1,
-    min: 0,
-    step: 0.02,
-  },
-  {
-    formatValue: (value) => `${Math.round(value)}%`,
-    key: 'gradientMidPoint',
-    label: 'Gradient Mid Point',
-    max: 100,
-    min: 0,
-    step: 1,
-  },
-  {
-    formatValue: (value) => `${Math.round(value * 100)}%`,
-    key: 'glowOpacity',
-    label: 'Center Glow',
-    max: 1,
-    min: 0,
-    step: 0.02,
-  },
-  {
-    formatValue: (value) => `${Math.round(value * 100)}%`,
-    key: 'accentBlobOpacity',
-    label: 'Accent Blob Opacity',
-    max: 1,
-    min: 0,
-    step: 0.02,
-  },
-  {
-    formatValue: (value) => `${Math.round(value)} px`,
-    key: 'accentBlobBlur',
-    label: 'Accent Blob Spread',
-    max: 160,
-    min: 20,
-    step: 2,
-  },
-  {
-    formatValue: (value) => `${Math.round(value * 100)}%`,
-    key: 'vignetteOpacity',
-    label: 'Vignette',
-    max: 0.6,
-    min: 0,
-    step: 0.01,
-  },
-  {
-    formatValue: (value) => `${Math.round(value)} px`,
-    key: 'shadowY',
-    label: 'Poster Shadow Y',
-    max: 48,
-    min: 0,
-    step: 1,
-  },
-  {
-    formatValue: (value) => `${Math.round(value)} px`,
-    key: 'shadowBlur',
-    label: 'Poster Shadow Blur',
-    max: 120,
-    min: 0,
-    step: 2,
-  },
-  {
-    formatValue: (value) => `${Math.round(value * 100)}%`,
-    key: 'shadowOpacity',
-    label: 'Poster Shadow Opacity',
-    max: 0.5,
-    min: 0,
-    step: 0.01,
-  },
-  {
-    formatValue: (value) => `${Math.round(value * 100)}%`,
-    key: 'shadowColorMatch',
-    label: 'Shadow Color Match',
-    max: 1,
-    min: 0,
-    step: 0.02,
-  },
-];
 
 function normalizeHex(hex: string) {
   const normalizedHex = hex.replace('#', '');
@@ -862,217 +763,6 @@ function InstagramIconButton() {
   );
 }
 
-function AuraControlRow({
-  fontsError,
-  fontsLoaded,
-  label,
-  max,
-  min,
-  onChange,
-  step,
-  value,
-  valueLabel,
-}: {
-  fontsError?: Error | null;
-  fontsLoaded?: boolean;
-  label: string;
-  max: number;
-  min: number;
-  onChange: (value: number) => void;
-  step: number;
-  value: number;
-  valueLabel: string;
-}) {
-  const segmentCount = 21;
-  const decreaseDisabled = value <= min;
-  const increaseDisabled = value >= max;
-
-  return (
-    <View style={styles.controlRow}>
-      <View style={styles.controlRowHeader}>
-        <Text
-          style={[
-            styles.controlLabel,
-            {
-              fontFamily: getGoogleSansFontFamily(
-                !!fontsLoaded,
-                fontsError,
-                'medium',
-              ),
-            },
-          ]}
-        >
-          {label}
-        </Text>
-        <Text
-          style={[
-            styles.controlValue,
-            {
-              fontFamily: getGoogleSansFontFamily(
-                !!fontsLoaded,
-                fontsError,
-                'regular',
-              ),
-            },
-          ]}
-        >
-          {valueLabel}
-        </Text>
-      </View>
-      <View style={styles.controlRowBody}>
-        <Pressable
-          disabled={decreaseDisabled}
-          onPress={() => onChange(value - step)}
-          style={[
-            styles.controlAdjustButton,
-            decreaseDisabled && styles.controlAdjustButtonDisabled,
-          ]}
-        >
-          <Ionicons color="#FFFFFF" name="remove" size={16} />
-        </Pressable>
-        <View style={styles.controlTrack}>
-          {Array.from({ length: segmentCount }).map((_, index) => {
-            const ratio = index / (segmentCount - 1);
-            const segmentValue = min + (max - min) * ratio;
-            const active = value >= segmentValue - step / 2;
-
-            return (
-              <Pressable
-                key={`${label}-${index}`}
-                onPress={() => onChange(segmentValue)}
-                style={[
-                  styles.controlTrackSegment,
-                  active && styles.controlTrackSegmentActive,
-                ]}
-              />
-            );
-          })}
-        </View>
-        <Pressable
-          disabled={increaseDisabled}
-          onPress={() => onChange(value + step)}
-          style={[
-            styles.controlAdjustButton,
-            increaseDisabled && styles.controlAdjustButtonDisabled,
-          ]}
-        >
-          <Ionicons color="#FFFFFF" name="add" size={16} />
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
-function AuraControlPanel({
-  auraParams,
-  bottomOffset,
-  fontsError,
-  fontsLoaded,
-  onClose,
-  onReset,
-  onUpdateParam,
-}: {
-  auraParams: AuraParams;
-  bottomOffset: number;
-  fontsError?: Error | null;
-  fontsLoaded?: boolean;
-  onClose: () => void;
-  onReset: () => void;
-  onUpdateParam: <K extends keyof AuraParams>(key: K, value: AuraParams[K]) => void;
-}) {
-  return (
-    <View pointerEvents="box-none" style={styles.controlPanelRoot}>
-      <Pressable onPress={onClose} style={styles.controlPanelBackdrop} />
-      <View style={[styles.controlPanel, { bottom: bottomOffset }]}>
-        <View style={styles.controlPanelHeader}>
-          <View>
-            <Text
-              style={[
-                styles.controlPanelEyebrow,
-                {
-                  fontFamily: getGoogleSansFontFamily(
-                    !!fontsLoaded,
-                    fontsError,
-                    'medium',
-                  ),
-                },
-              ]}
-            >
-              Poster Aura
-            </Text>
-            <Text
-              style={[
-                styles.controlPanelTitle,
-                {
-                  fontFamily: getGoogleSansFontFamily(
-                    !!fontsLoaded,
-                    fontsError,
-                    'bold',
-                  ),
-                },
-              ]}
-            >
-              Gradient Controls
-            </Text>
-          </View>
-          <View style={styles.controlPanelActions}>
-            <Pressable onPress={onReset} style={styles.controlPanelAction}>
-              <Text
-                style={[
-                  styles.controlPanelActionText,
-                  {
-                    fontFamily: getGoogleSansFontFamily(
-                      !!fontsLoaded,
-                      fontsError,
-                      'medium',
-                    ),
-                  },
-                ]}
-              >
-                Reset
-              </Text>
-            </Pressable>
-            <Pressable onPress={onClose} style={styles.controlPanelClose}>
-              <Ionicons color="#FFFFFF" name="close" size={18} />
-            </Pressable>
-          </View>
-        </View>
-        <ScrollView
-          contentContainerStyle={styles.controlPanelContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {AURA_CONTROL_SPECS.map((control) => (
-            <AuraControlRow
-              fontsError={fontsError}
-              fontsLoaded={fontsLoaded}
-              key={control.key}
-              label={control.label}
-              max={control.max}
-              min={control.min}
-              onChange={(nextValue) => {
-                const steppedValue =
-                  Math.round(nextValue / control.step) * control.step;
-
-                onUpdateParam(
-                  control.key,
-                  clampNumber(steppedValue, control.min, control.max),
-                );
-              }}
-              step={control.step}
-              value={auraParams[control.key]}
-              valueLabel={
-                control.formatValue
-                  ? control.formatValue(auraParams[control.key])
-                  : `${auraParams[control.key]}`
-              }
-            />
-          ))}
-        </ScrollView>
-      </View>
-    </View>
-  );
-}
-
 function EditStatusIcon() {
   return (
     <View style={styles.editStatusIcon}>
@@ -1128,7 +818,6 @@ function FeedScreen() {
   const [filterWrapHeight, setFilterWrapHeight] = useState(0);
   const [activeFeedIndex, setActiveFeedIndex] = useState(0);
   const [auraParams, setAuraParams] = useState(DEFAULT_AURA_PARAMS);
-  const [isControlPanelOpen, setIsControlPanelOpen] = useState(false);
   const resolvedHeaderHeight =
     insets.top + 8 + filterWrapHeight + HEADER_BOTTOM_PADDING;
   const resolvedBottomInset = Math.min(insets.bottom, MAX_BOTTOM_VISUAL_INSET);
@@ -1280,25 +969,6 @@ function FeedScreen() {
     setFilterWrapHeight(nextHeight);
   };
 
-  const updateAuraParam = <K extends keyof AuraParams>(
-    key: K,
-    value: AuraParams[K],
-  ) => {
-    setAuraParams((current) => ({
-      ...current,
-      [key]: value,
-    }));
-  };
-
-  const openControlPanel = () => {
-    setChromeVisible(true);
-    setIsControlPanelOpen(true);
-  };
-
-  const closeControlPanel = () => {
-    setIsControlPanelOpen(false);
-  };
-
   return (
     <View style={styles.screen}>
       <StatusBar hidden={false} style="light" />
@@ -1419,7 +1089,6 @@ function FeedScreen() {
               {...action}
               fontsError={fontsError}
               fontsLoaded={fontsLoaded}
-              onPress={action.label === 'More' ? openControlPanel : undefined}
             />
           )}
           showsHorizontalScrollIndicator={false}
@@ -1430,18 +1099,6 @@ function FeedScreen() {
           style={[styles.bottomNavSeparator, { opacity: chromeVisibility }]}
         />
       </Animated.View>
-
-      {isControlPanelOpen ? (
-        <AuraControlPanel
-          auraParams={auraParams}
-          bottomOffset={resolvedActionBarHeight + resolvedBottomNavHeight}
-          fontsError={fontsError}
-          fontsLoaded={fontsLoaded}
-          onClose={closeControlPanel}
-          onReset={() => setAuraParams(DEFAULT_AURA_PARAMS)}
-          onUpdateParam={updateAuraParam}
-        />
-      ) : null}
     </View>
   );
 }
@@ -1579,133 +1236,6 @@ const styles = StyleSheet.create({
   bottomNavSeparator: {
     backgroundColor: '#1A1A1A',
     height: 1,
-  },
-  controlAdjustButton: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 999,
-    height: 30,
-    justifyContent: 'center',
-    width: 30,
-  },
-  controlAdjustButtonDisabled: {
-    opacity: 0.35,
-  },
-  controlLabel: {
-    color: '#FFFFFF',
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 18,
-    paddingRight: 10,
-  },
-  controlPanel: {
-    backgroundColor: 'rgba(12,12,14,0.98)',
-    borderColor: 'rgba(255,255,255,0.08)',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderWidth: 1,
-    left: 12,
-    maxHeight: '62%',
-    overflow: 'hidden',
-    position: 'absolute',
-    right: 12,
-  },
-  controlPanelAction: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  controlPanelActionText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '600',
-    lineHeight: 16,
-  },
-  controlPanelActions: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 10,
-  },
-  controlPanelBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.32)',
-  },
-  controlPanelClose: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 999,
-    height: 34,
-    justifyContent: 'center',
-    width: 34,
-  },
-  controlPanelContent: {
-    gap: 14,
-    paddingBottom: 28,
-    paddingHorizontal: 18,
-    paddingTop: 14,
-  },
-  controlPanelEyebrow: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.8,
-    lineHeight: 14,
-    textTransform: 'uppercase',
-  },
-  controlPanelHeader: {
-    alignItems: 'center',
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-  },
-  controlPanelRoot: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'flex-end',
-  },
-  controlPanelTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
-    lineHeight: 22,
-    marginTop: 4,
-  },
-  controlRow: {
-    gap: 10,
-  },
-  controlRowBody: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 10,
-  },
-  controlRowHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  controlTrack: {
-    flex: 1,
-    flexDirection: 'row',
-    gap: 4,
-  },
-  controlTrackSegment: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 999,
-    flex: 1,
-    height: 24,
-  },
-  controlTrackSegmentActive: {
-    backgroundColor: '#FFFFFF',
-  },
-  controlValue: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 13,
-    fontVariant: ['tabular-nums'],
-    lineHeight: 18,
   },
   screenContent: {
     flex: 1,
