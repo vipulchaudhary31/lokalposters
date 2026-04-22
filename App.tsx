@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
@@ -76,6 +76,8 @@ const FONT_FAMILY_REGULAR = 'GoogleSans-Regular';
 const FONT_FAMILY_MEDIUM = 'GoogleSans-Medium';
 const FONT_FAMILY_BOLD = 'GoogleSans-Bold';
 const ANDROID_FEED_DECELERATION_RATE = 0.998;
+const FEED_IMAGE_PRELOAD_AHEAD_COUNT = 3;
+const FEED_IMAGE_PRELOAD_BEHIND_COUNT = 1;
 
 const GOOGLE_SANS_FONT_MAP = {
   [FONT_FAMILY_REGULAR]: {
@@ -210,6 +212,20 @@ interface AuraSpeckle {
   y: number;
 }
 
+interface PosterBackdropModel {
+  baseColor: [number, number, number];
+  bottomLiftColor: [number, number, number];
+  centerGlowRadius: number;
+  edgeShadeColor: [number, number, number];
+  idBase: string;
+  sideGlowRadius: number;
+  speckles: AuraSpeckle[];
+  topBlobRadius: number;
+  topShadeColor: [number, number, number];
+  vignetteRadius: number;
+  bottomBlobRadius: number;
+}
+
 const DEFAULT_AURA_PARAMS: AuraParams = {
   intensity: 0.6,
   gradientMidOpacity: 0.72,
@@ -223,6 +239,8 @@ const DEFAULT_AURA_PARAMS: AuraParams = {
   shadowOpacity: 0.18,
   shadowColorMatch: 0.3,
 };
+const FEED_WINDOW_SIZE = 3;
+const FEED_BATCH_RENDER_COUNT = 2;
 
 function normalizeHex(hex: string) {
   const normalizedHex = hex.replace('#', '');
@@ -329,6 +347,8 @@ function buildAuraPalette(dominantHex: string): AuraPalette {
 
 const auraPaletteCache = new Map<string, AuraPalette>();
 const auraSpecklesCache = new Map<string, AuraSpeckle[]>();
+const posterBackdropModelCache = new Map<string, PosterBackdropModel>();
+const feedImageWarmCache = new Set<string>();
 
 function getAuraPalette(dominantHex: string) {
   const cachedPalette = auraPaletteCache.get(dominantHex);
@@ -400,6 +420,75 @@ function getAuraSpeckles(
   return nextSpeckles;
 }
 
+function getAuraParamsCacheKey(auraParams: AuraParams) {
+  return [
+    auraParams.intensity,
+    auraParams.gradientMidOpacity,
+    auraParams.gradientMidPoint,
+    auraParams.glowOpacity,
+    auraParams.accentBlobOpacity,
+    auraParams.accentBlobBlur,
+    auraParams.vignetteOpacity,
+    auraParams.shadowY,
+    auraParams.shadowBlur,
+    auraParams.shadowOpacity,
+    auraParams.shadowColorMatch,
+  ].join(':');
+}
+
+function getPosterBackdropModel(
+  dominantHex: string,
+  palette: AuraPalette,
+  width: number,
+  height: number,
+  auraParams: AuraParams,
+) {
+  const cacheKey = `${dominantHex}-${Math.round(width)}x${Math.round(height)}-${getAuraParamsCacheKey(auraParams)}`;
+  const cachedModel = posterBackdropModelCache.get(cacheKey);
+
+  if (cachedModel) {
+    return cachedModel;
+  }
+
+  const baseColor = hexToRgb(mixHex(dominantHex, '#120D14', 0.26));
+  const topShadeColor = hexToRgb(mixHex(dominantHex, '#17111A', 0.3));
+  const edgeShadeColor = hexToRgb(mixHex(dominantHex, '#0B0810', 0.16));
+  const bottomLiftColor = hexToRgb(mixHex(dominantHex, '#2A1E2F', 0.42));
+  const speckles = getAuraSpeckles(
+    dominantHex,
+    palette,
+    width,
+    height,
+  );
+  const intensityScale = DEFAULT_AURA_PARAMS.intensity
+    ? auraParams.intensity / DEFAULT_AURA_PARAMS.intensity
+    : 1;
+  const blobSpreadScale = DEFAULT_AURA_PARAMS.accentBlobBlur
+    ? auraParams.accentBlobBlur / DEFAULT_AURA_PARAMS.accentBlobBlur
+    : 1;
+  const nextModel = {
+    baseColor,
+    bottomBlobRadius:
+      Math.max(width * 0.66, height * 0.28) * blobSpreadScale,
+    bottomLiftColor,
+    centerGlowRadius:
+      Math.max(width * 0.84, height * 0.48) * (0.92 + intensityScale * 0.08),
+    edgeShadeColor,
+    idBase: `poster-stage-aura-${dominantHex.replace('#', '')}`,
+    sideGlowRadius:
+      Math.max(width * 0.7, height * 0.36) * (0.94 + blobSpreadScale * 0.06),
+    speckles,
+    topBlobRadius:
+      Math.max(width * 0.74, height * 0.34) * blobSpreadScale,
+    topShadeColor,
+    vignetteRadius: Math.max(width * 1.02, height * 0.8),
+  } satisfies PosterBackdropModel;
+
+  posterBackdropModelCache.set(cacheKey, nextModel);
+
+  return nextModel;
+}
+
 function createFeedItem(
   key: string,
   dominantHex: string,
@@ -434,7 +523,7 @@ const LOOPED_FEED_ITEMS = firstFeedItem
   ? [...FEED_ITEMS, { ...firstFeedItem, key: `${firstFeedItem.key}-loop` }]
   : FEED_ITEMS;
 
-function PosterStageBackdrop({
+const PosterStageBackdrop = memo(function PosterStageBackdrop({
   auraParams,
   auraPalette,
   dominantHex,
@@ -448,35 +537,34 @@ function PosterStageBackdrop({
   width: number;
 }) {
   const palette = auraPalette;
-  const baseColor = hexToRgb(mixHex(dominantHex, '#120D14', 0.26));
-  const topShadeColor = hexToRgb(mixHex(dominantHex, '#17111A', 0.3));
-  const edgeShadeColor = hexToRgb(mixHex(dominantHex, '#0B0810', 0.16));
-  const bottomLiftColor = hexToRgb(mixHex(dominantHex, '#2A1E2F', 0.42));
-  const speckles = getAuraSpeckles(
+  const {
+    baseColor,
+    bottomBlobRadius,
+    bottomLiftColor,
+    centerGlowRadius,
+    edgeShadeColor,
+    idBase,
+    sideGlowRadius,
+    speckles,
+    topBlobRadius,
+    topShadeColor,
+    vignetteRadius,
+  } = getPosterBackdropModel(
     dominantHex,
     palette,
     width,
     height,
+    auraParams,
   );
-  const idBase = `poster-stage-aura-${dominantHex.replace('#', '')}`;
   const intensityScale = DEFAULT_AURA_PARAMS.intensity
     ? auraParams.intensity / DEFAULT_AURA_PARAMS.intensity
     : 1;
-  const blobSpreadScale = DEFAULT_AURA_PARAMS.accentBlobBlur
-    ? auraParams.accentBlobBlur / DEFAULT_AURA_PARAMS.accentBlobBlur
-    : 1;
-  const centerGlowRadius =
-    Math.max(width * 0.84, height * 0.48) * (0.92 + intensityScale * 0.08);
-  const topBlobRadius = Math.max(width * 0.74, height * 0.34) * blobSpreadScale;
-  const bottomBlobRadius =
-    Math.max(width * 0.66, height * 0.28) * blobSpreadScale;
-  const sideGlowRadius =
-    Math.max(width * 0.7, height * 0.36) * (0.94 + blobSpreadScale * 0.06);
-  const vignetteRadius = Math.max(width * 1.02, height * 0.8);
 
   return (
     <View
       pointerEvents="none"
+      renderToHardwareTextureAndroid
+      shouldRasterizeIOS
       style={[
         styles.posterStageBackdrop,
         {
@@ -628,9 +716,9 @@ function PosterStageBackdrop({
       </Svg>
     </View>
   );
-}
+});
 
-function FilterChip({
+const FilterChip = memo(function FilterChip({
   active = false,
   chevron = false,
   fontsError,
@@ -676,9 +764,9 @@ function FilterChip({
       {chevron ? <Ionicons color="rgba(255,255,255,0.75)" name="chevron-down" size={12} /> : null}
     </Pressable>
   );
-}
+});
 
-function ActionButton({
+const ActionButton = memo(function ActionButton({
   customType,
   fontsError,
   fontsLoaded,
@@ -735,7 +823,7 @@ function ActionButton({
       </View>
     </Pressable>
   );
-}
+});
 
 function ActionPngIcon({
   source,
@@ -784,7 +872,7 @@ function EditStatusIcon() {
   );
 }
 
-function BottomNavItem({
+const BottomNavItem = memo(function BottomNavItem({
   Icon,
 }: {
   Icon: typeof BottomNav1;
@@ -796,7 +884,7 @@ function BottomNavItem({
       </View>
     </Pressable>
   );
-}
+});
 
 function ActionBarSpacer() {
   return <View style={styles.actionBarSpacer} />;
@@ -805,6 +893,53 @@ function ActionBarSpacer() {
 function normalizeFeedIndex(index: number) {
   return ((index % FEED_ITEMS.length) + FEED_ITEMS.length) % FEED_ITEMS.length;
 }
+
+async function warmFeedImage(item: FeedItem) {
+  if (feedImageWarmCache.has(item.key)) {
+    return;
+  }
+
+  feedImageWarmCache.add(item.key);
+
+  try {
+    await Image.loadAsync(item.source);
+  } catch {
+    feedImageWarmCache.delete(item.key);
+  }
+}
+
+const PosterCard = memo(function PosterCard({
+  item,
+  posterAreaHeight,
+  posterBottomInset,
+  width,
+}: {
+  item: FeedItem;
+  posterAreaHeight: number;
+  posterBottomInset: Animated.AnimatedInterpolation<string | number>;
+  width: number;
+}) {
+  return (
+    <View style={[styles.posterFrame, { height: posterAreaHeight, width }]}>
+      <Animated.View
+        style={[
+          styles.posterContent,
+          {
+            paddingBottom: posterBottomInset,
+          },
+        ]}
+      >
+        <Image
+          cachePolicy="memory-disk"
+          contentFit="contain"
+          recyclingKey={item.key}
+          source={item.source}
+          style={styles.posterImage}
+        />
+      </Animated.View>
+    </View>
+  );
+});
 
 function FeedScreen() {
   const [fontsLoaded, fontsError] = useFonts(GOOGLE_SANS_FONT_MAP);
@@ -817,7 +952,6 @@ function FeedScreen() {
   const lastScrollOffsetRef = useRef(0);
   const [filterWrapHeight, setFilterWrapHeight] = useState(0);
   const [activeFeedIndex, setActiveFeedIndex] = useState(0);
-  const [auraParams, setAuraParams] = useState(DEFAULT_AURA_PARAMS);
   const resolvedHeaderHeight =
     insets.top + 8 + filterWrapHeight + HEADER_BOTTOM_PADDING;
   const resolvedBottomInset = Math.min(insets.bottom, MAX_BOTTOM_VISUAL_INSET);
@@ -825,29 +959,55 @@ function FeedScreen() {
   const resolvedActionBarHeight = ACTION_BAR_HEIGHT;
   const posterAreaHeight = height - resolvedHeaderHeight;
   const activeFeedItem = FEED_ITEMS[activeFeedIndex] ?? FEED_ITEMS[0];
-  const posterBottomInset = chromeVisibility.interpolate({
-    inputRange: [0, 1],
-    outputRange: [
-      resolvedActionBarHeight + resolvedBottomInset,
-      resolvedActionBarHeight + resolvedBottomNavHeight,
+  const auraParams = DEFAULT_AURA_PARAMS;
+  const posterBottomInset = useMemo(
+    () =>
+      chromeVisibility.interpolate({
+        inputRange: [0, 1],
+        outputRange: [
+          resolvedActionBarHeight + resolvedBottomInset,
+          resolvedActionBarHeight + resolvedBottomNavHeight,
+        ],
+      }),
+    [
+      chromeVisibility,
+      resolvedActionBarHeight,
+      resolvedBottomInset,
+      resolvedBottomNavHeight,
     ],
-  });
-  const bottomChromeTranslateY = chromeVisibility.interpolate({
-    inputRange: [0, 1],
-    outputRange: [resolvedBottomNavHeight, 0],
-  });
-  const bottomChromeOpacity = chromeVisibility.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.92, 1],
-  });
-  const actionBarBottomOffset = chromeVisibility.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -resolvedBottomNavHeight],
-  });
-  const actionBarBottomPadding = chromeVisibility.interpolate({
-    inputRange: [0, 1],
-    outputRange: [resolvedBottomInset, 0],
-  });
+  );
+  const bottomChromeTranslateY = useMemo(
+    () =>
+      chromeVisibility.interpolate({
+        inputRange: [0, 1],
+        outputRange: [resolvedBottomNavHeight, 0],
+      }),
+    [chromeVisibility, resolvedBottomNavHeight],
+  );
+  const bottomChromeOpacity = useMemo(
+    () =>
+      chromeVisibility.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.92, 1],
+      }),
+    [chromeVisibility],
+  );
+  const actionBarBottomOffset = useMemo(
+    () =>
+      chromeVisibility.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, -resolvedBottomNavHeight],
+      }),
+    [chromeVisibility, resolvedBottomNavHeight],
+  );
+  const actionBarBottomPadding = useMemo(
+    () =>
+      chromeVisibility.interpolate({
+        inputRange: [0, 1],
+        outputRange: [resolvedBottomInset, 0],
+      }),
+    [chromeVisibility, resolvedBottomInset],
+  );
 
   useEffect(() => {
     if (width <= 0 || posterAreaHeight <= 0) {
@@ -857,14 +1017,35 @@ function FeedScreen() {
     const backdropHeight = resolvedHeaderHeight + posterAreaHeight;
 
     FEED_ITEMS.forEach((item) => {
-      getAuraSpeckles(
+      getPosterBackdropModel(
         item.palette.dominantHex,
         item.palette.auraPalette,
         width,
         backdropHeight,
+        auraParams,
       );
     });
-  }, [posterAreaHeight, resolvedHeaderHeight, width]);
+  }, [auraParams, posterAreaHeight, resolvedHeaderHeight, width]);
+
+  useEffect(() => {
+    const itemsToWarm = new Set<FeedItem>();
+
+    for (
+      let offset = -FEED_IMAGE_PRELOAD_BEHIND_COUNT;
+      offset <= FEED_IMAGE_PRELOAD_AHEAD_COUNT;
+      offset += 1
+    ) {
+      const item = FEED_ITEMS[normalizeFeedIndex(activeFeedIndex + offset)];
+
+      if (item) {
+        itemsToWarm.add(item);
+      }
+    }
+
+    itemsToWarm.forEach((item) => {
+      void warmFeedImage(item);
+    });
+  }, [activeFeedIndex]);
 
   const commitActiveFeedIndex = (offsetY: number) => {
     const nextIndex = Math.round(offsetY / posterAreaHeight);
@@ -969,6 +1150,29 @@ function FeedScreen() {
     setFilterWrapHeight(nextHeight);
   };
 
+  const renderPosterItem = useCallback(
+    ({ item }: { item: FeedItem }) => (
+      <PosterCard
+        item={item}
+        posterAreaHeight={posterAreaHeight}
+        posterBottomInset={posterBottomInset}
+        width={width}
+      />
+    ),
+    [posterAreaHeight, posterBottomInset, width],
+  );
+
+  const renderActionItem = useCallback(
+    ({ item: action }: { item: (typeof ACTIONS)[number] }) => (
+      <ActionButton
+        {...action}
+        fontsError={fontsError}
+        fontsLoaded={fontsLoaded}
+      />
+    ),
+    [fontsError, fontsLoaded],
+  );
+
   return (
     <View style={styles.screen}>
       <StatusBar hidden={false} style="light" />
@@ -1016,40 +1220,30 @@ function FeedScreen() {
               length: posterAreaHeight,
               offset: posterAreaHeight * index,
             })}
+            initialNumToRender={FEED_BATCH_RENDER_COUNT}
             keyExtractor={(item) => item.key}
+            maxToRenderPerBatch={FEED_BATCH_RENDER_COUNT}
             onMomentumScrollEnd={handleFeedMomentumEnd}
             onScroll={handleFeedScroll}
             onScrollBeginDrag={handleFeedScroll}
             onScrollEndDrag={handleFeedScrollEndDrag}
-            renderItem={({ item }) => (
-              <View style={[styles.posterFrame, { height: posterAreaHeight, width }]}>
-                <Animated.View
-                  style={[
-                    styles.posterContent,
-                    {
-                      paddingBottom: posterBottomInset,
-                    },
-                  ]}
-                >
-                  <Image
-                    contentFit="contain"
-                    source={item.source}
-                    style={styles.posterImage}
-                  />
-                </Animated.View>
-              </View>
-            )}
+            removeClippedSubviews={Platform.OS === 'android'}
+            renderItem={renderPosterItem}
             scrollEventThrottle={16}
             showsVerticalScrollIndicator={false}
             snapToAlignment="start"
             snapToInterval={posterAreaHeight}
             style={styles.posterList}
             ref={feedListRef}
+            updateCellsBatchingPeriod={16}
+            windowSize={FEED_WINDOW_SIZE}
           />
         </View>
       </View>
 
       <Animated.View
+        renderToHardwareTextureAndroid
+        shouldRasterizeIOS
         style={[
           styles.bottomNavContainer,
           {
@@ -1068,6 +1262,8 @@ function FeedScreen() {
       </Animated.View>
 
       <Animated.View
+        renderToHardwareTextureAndroid
+        shouldRasterizeIOS
         style={[
           styles.actionBarContainer,
           {
@@ -1084,13 +1280,7 @@ function FeedScreen() {
           horizontal
           ItemSeparatorComponent={ActionBarSpacer}
           keyExtractor={(item) => item.label}
-          renderItem={({ item: action }) => (
-            <ActionButton
-              {...action}
-              fontsError={fontsError}
-              fontsLoaded={fontsLoaded}
-            />
-          )}
+          renderItem={renderActionItem}
           showsHorizontalScrollIndicator={false}
           style={styles.actionBar}
         />
