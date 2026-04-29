@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import ProfilePrototypeScreen from './screens/ProfilePrototypeScreen';
 import Svg, {
   Circle,
   Defs,
@@ -171,6 +172,8 @@ const NAV_ITEMS: Array<{
   { Icon: BottomNav3, key: 'alerts' },
   { Icon: BottomNav4, key: 'profile' },
 ];
+
+type AppScreen = 'feed' | 'profile';
 
 type PosterStagePalette = {
   auraPalette: AuraPalette;
@@ -874,11 +877,13 @@ function EditStatusIcon() {
 
 const BottomNavItem = memo(function BottomNavItem({
   Icon,
+  onPress,
 }: {
   Icon: typeof BottomNav1;
+  onPress?: () => void;
 }) {
   return (
-    <Pressable style={styles.bottomNavItem}>
+    <Pressable onPress={onPress} style={styles.bottomNavItem}>
       <View style={styles.bottomNavIconWrap}>
         <Icon height={40} width={40} />
       </View>
@@ -941,7 +946,11 @@ const PosterCard = memo(function PosterCard({
   );
 });
 
-function FeedScreen() {
+function FeedScreen({
+  onOpenProfile,
+}: {
+  onOpenProfile: () => void;
+}) {
   const [fontsLoaded, fontsError] = useFonts(GOOGLE_SANS_FONT_MAP);
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -1255,7 +1264,11 @@ function FeedScreen() {
         <View style={[styles.bottomNavShell, { paddingBottom: resolvedBottomInset }]}>
           <View style={styles.bottomNav}>
             {NAV_ITEMS.map((item) => (
-              <BottomNavItem key={item.key} Icon={item.Icon} />
+              <BottomNavItem
+                key={item.key}
+                Icon={item.Icon}
+                onPress={item.key === 'profile' ? onOpenProfile : undefined}
+              />
             ))}
           </View>
         </View>
@@ -1294,9 +1307,15 @@ function FeedScreen() {
 }
 
 export default function App() {
+  const [activeScreen, setActiveScreen] = useState<AppScreen>('profile');
+
   return (
     <SafeAreaProvider>
-      <FeedScreen />
+      {activeScreen === 'profile' ? (
+        <ProfilePrototypeScreen onBack={() => setActiveScreen('feed')} />
+      ) : (
+        <FeedScreen onOpenProfile={() => setActiveScreen('profile')} />
+      )}
     </SafeAreaProvider>
   );
 }
