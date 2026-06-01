@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import ProfilePrototypeScreen from './screens/ProfilePrototypeScreen';
 import Svg, {
   Circle,
@@ -19,9 +20,12 @@ import BottomNav2 from './assets/bottom-nav/2.svg';
 import BottomNav3 from './assets/bottom-nav/3.svg';
 import BottomNav4 from './assets/bottom-nav/4.svg';
 import {
+  ActionSheetIOS,
   Animated,
+  Alert,
   Easing,
   FlatList,
+  Image as RNImage,
   LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -40,9 +44,7 @@ import {
 const ASSETS = {
   downloadButton: require('./assets/action-bar/download.png'),
   editStatusAvatar: require('./assets/action-bar/sample-photo-bg.png'),
-  instagramButton: require('./assets/action-bar/insta.png'),
-  moreButton: require('./assets/action-bar/more.png'),
-  whatsappButton: require('./assets/action-bar/whatsapp.png'),
+  feedStart: require('./assets/feed/start.png'),
   feed1: require('./assets/feed/1.png'),
   feed2: require('./assets/feed/2.png'),
   feed3: require('./assets/feed/3.png'),
@@ -54,25 +56,53 @@ const ASSETS = {
   feed9: require('./assets/feed/9.png'),
   feed10: require('./assets/feed/10.png'),
   feed11: require('./assets/feed/11.png'),
+  feedVideo1: require('./assets/feed/video-1.mp4'),
+  feedVideo2: require('./assets/feed/video-2.mp4'),
+  feedVideo3: require('./assets/feed/video-3.mp4'),
+  instagramButton: require('./assets/action-bar/insta.png'),
+  moreButton: require('./assets/action-bar/more.png'),
+  whatsappButton: require('./assets/action-bar/whatsapp.png'),
+};
+
+const STATUS_ASSETS = {
+  edit: require('./assets/status feed/generated/edit-tight.png'),
+  more: require('./assets/status feed/generated/more-tight.png'),
+  profileButton: require('./assets/status feed/profile.png'),
+  statusBadge: require('./assets/status feed/logo.png'),
+  whatsappGlyph: require('./assets/status feed/generated/whatsapp-tight.png'),
+};
+
+const FIGMA_ASSETS = {
+  birthday: 'https://www.figma.com/api/mcp/asset/afec2932-17e1-4696-a98a-060db56e0b3f',
+  caretDown: 'https://www.figma.com/api/mcp/asset/6e89297b-5a77-412a-8e08-e643a41aa41e',
+  edit: 'https://www.figma.com/api/mcp/asset/9f3a2195-97ef-404d-8004-cba0f9d754f6',
+  more: 'https://www.figma.com/api/mcp/asset/a0eea421-1c18-4d93-a4a1-3349b1b7023f',
+  profileButton: 'https://www.figma.com/api/mcp/asset/3cf8fab1-970d-4e3e-b334-ae5e111b7dab',
+  statusBadge: 'https://www.figma.com/api/mcp/asset/5f841310-fa35-4982-b5c0-fa291043a749',
+  trending: 'https://www.figma.com/api/mcp/asset/4c1f935d-f2c0-4824-bf8b-946db1915956',
+  whatsappGlyph: 'https://www.figma.com/api/mcp/asset/7b524113-060d-4e44-93e0-727f485e2c54',
 };
 
 const ACTION_BUTTON_SIZE = 56;
-const ACTION_ITEM_WIDTH = 76;
+const ACTION_ICON_BUTTON_SIZE = 44;
 const ACTION_ITEM_GAP = 6;
+const ACTION_ITEM_WIDTH = 76;
 const ACTION_BAR_HORIZONTAL_PADDING = 12;
 const ACTION_BAR_VERTICAL_PADDING = 12;
-const ACTION_LABEL_LINE_HEIGHT = 16;
 const ACTION_LABEL_GAP = 8;
+const ACTION_LABEL_LINE_HEIGHT = 16;
 const ACTION_BAR_HEIGHT =
   ACTION_BAR_VERTICAL_PADDING * 2 +
   ACTION_BUTTON_SIZE +
   ACTION_LABEL_GAP +
   ACTION_LABEL_LINE_HEIGHT;
+const ACTION_ROW_HEIGHT = 72;
 const BOTTOM_NAV_HEIGHT = 48;
 const MAX_BOTTOM_VISUAL_INSET = 16;
 const SWIPE_DIRECTION_THRESHOLD = 6;
 const CHROME_ANIMATION_DURATION = 280;
 const HEADER_BOTTOM_PADDING = 12;
+const HEADER_TITLE_ROW_HEIGHT = 40;
 const FONT_FAMILY_REGULAR = 'GoogleSans-Regular';
 const FONT_FAMILY_MEDIUM = 'GoogleSans-Medium';
 const FONT_FAMILY_BOLD = 'GoogleSans-Bold';
@@ -92,13 +122,14 @@ const GOOGLE_SANS_FONT_MAP = {
   },
 } as const;
 
-const TOP_FILTERS: Array<{
+const LEGACY_TOP_FILTERS: Array<{
   active?: boolean;
   chevron?: boolean;
   icon?: 'birthday' | 'trending';
   label: string;
 }> = [
   { active: true, label: 'For you' },
+  { label: "Today's special" },
   { label: 'Love' },
   { icon: 'trending', label: 'Trending' },
   { label: 'Politics' },
@@ -110,37 +141,41 @@ const TOP_FILTERS: Array<{
   { chevron: true, label: 'More' },
 ];
 
-const ACTIONS: Array<{
+const STATUS_TOP_FILTERS: Array<{
+  active?: boolean;
+  chevron?: boolean;
+  icon?: 'birthday' | 'trending';
+  label: string;
+}> = LEGACY_TOP_FILTERS.filter(
+  (filter) =>
+    filter.label !== 'Motivation' &&
+    filter.label !== 'Festival' &&
+    filter.label !== 'Good Morning',
+);
+
+const NAV_ITEMS: Array<{
+  Icon: typeof BottomNav1;
+  key: string;
+}> = [
+  { Icon: BottomNav1, key: 'news' },
+  { Icon: BottomNav2, key: 'posters' },
+  { Icon: BottomNav3, key: 'alerts' },
+  { Icon: BottomNav4, key: 'profile' },
+];
+
+const HYBRID_NAV_ITEMS = [NAV_ITEMS[1], NAV_ITEMS[0], NAV_ITEMS[2], NAV_ITEMS[3]];
+
+const LEGACY_ACTIONS: Array<{
   customType?: 'download' | 'edit-status' | 'instagram' | 'more' | 'whatsapp';
   Icon?: ComponentType<{ height?: number; width?: number }>;
   label: string;
   size: number;
 }> = [
-  {
-    customType: 'download',
-    label: 'Download',
-    size: ACTION_BUTTON_SIZE,
-  },
-  {
-    customType: 'whatsapp',
-    label: 'Whatsapp',
-    size: ACTION_BUTTON_SIZE,
-  },
-  {
-    customType: 'instagram',
-    label: 'Instagram',
-    size: ACTION_BUTTON_SIZE,
-  },
-  {
-    customType: 'edit-status',
-    label: 'Edit',
-    size: ACTION_BUTTON_SIZE,
-  },
-  {
-    customType: 'more',
-    label: 'More',
-    size: ACTION_BUTTON_SIZE,
-  },
+  { customType: 'download', label: 'Download', size: ACTION_BUTTON_SIZE },
+  { customType: 'whatsapp', label: 'Whatsapp', size: ACTION_BUTTON_SIZE },
+  { customType: 'instagram', label: 'Instagram', size: ACTION_BUTTON_SIZE },
+  { customType: 'edit-status', label: 'Edit', size: ACTION_BUTTON_SIZE },
+  { customType: 'more', label: 'More', size: ACTION_BUTTON_SIZE },
 ];
 
 function getGoogleSansFontFamily(
@@ -163,15 +198,15 @@ function getGoogleSansFontFamily(
   return FONT_FAMILY_REGULAR;
 }
 
-const NAV_ITEMS: Array<{
-  Icon: typeof BottomNav1;
-  key: string;
-}> = [
-  { Icon: BottomNav1, key: 'news' },
-  { Icon: BottomNav2, key: 'posters' },
-  { Icon: BottomNav3, key: 'alerts' },
-  { Icon: BottomNav4, key: 'profile' },
-];
+type FeedVariant = 'hybrid' | 'legacy' | 'status';
+
+const DEFAULT_FEED_VARIANT: FeedVariant = 'status';
+const FEED_VARIANT_OPTIONS: FeedVariant[] = ['legacy', 'status', 'hybrid'];
+const FEED_VARIANT_LABELS: Record<FeedVariant, string> = {
+  hybrid: 'Hybrid Feed',
+  legacy: 'Legacy Feed',
+  status: 'Status Feed',
+};
 
 type AppScreen = 'feed' | 'profile';
 
@@ -182,6 +217,7 @@ type PosterStagePalette = {
 
 type FeedItem = {
   key: string;
+  mediaType: 'image' | 'video';
   palette: PosterStagePalette;
   source: number;
 };
@@ -496,9 +532,12 @@ function createFeedItem(
   key: string,
   dominantHex: string,
   source: number,
+  options?: Partial<Pick<FeedItem, 'mediaType'>>,
 ): FeedItem {
   return {
+    ...options,
     key,
+    mediaType: options?.mediaType ?? 'image',
     palette: {
       auraPalette: getAuraPalette(dominantHex),
       dominantHex,
@@ -507,24 +546,30 @@ function createFeedItem(
   };
 }
 
-const FEED_ITEMS: FeedItem[] = [
+const STATUS_FEED_ITEMS: FeedItem[] = [
   createFeedItem('feed-1', '#E5E4DE', ASSETS.feed1),
+  createFeedItem('feed-video-1', '#A67558', ASSETS.feedVideo1, {
+    mediaType: 'video',
+  }),
+  createFeedItem('feed-video-2', '#AF7C61', ASSETS.feedVideo2, {
+    mediaType: 'video',
+  }),
+  createFeedItem('feed-video-3', '#58543A', ASSETS.feedVideo3, {
+    mediaType: 'video',
+  }),
   createFeedItem('feed-2', '#621C4D', ASSETS.feed2),
   createFeedItem('feed-3', '#6E1B56', ASSETS.feed3),
   createFeedItem('feed-4', '#74BABE', ASSETS.feed4),
   createFeedItem('feed-5', '#432918', ASSETS.feed5),
-  createFeedItem('feed-6', '#834E07', ASSETS.feed6),
-  createFeedItem('feed-7', '#F8DEBC', ASSETS.feed7),
   createFeedItem('feed-8', '#02234E', ASSETS.feed8),
-  createFeedItem('feed-9', '#EDDFD0', ASSETS.feed9),
-  createFeedItem('feed-10', '#E3D6BA', ASSETS.feed10),
-  createFeedItem('feed-11', '#E4DFC9', ASSETS.feed11),
 ];
 
-const firstFeedItem = FEED_ITEMS[0];
-const LOOPED_FEED_ITEMS = firstFeedItem
-  ? [...FEED_ITEMS, { ...firstFeedItem, key: `${firstFeedItem.key}-loop` }]
-  : FEED_ITEMS;
+function getLoopedFeedItems(items: FeedItem[]) {
+  const firstFeedItem = items[0];
+  return firstFeedItem
+    ? [...items, { ...firstFeedItem, key: `${firstFeedItem.key}-loop` }]
+    : items;
+}
 
 const PosterStageBackdrop = memo(function PosterStageBackdrop({
   auraParams,
@@ -728,6 +773,7 @@ const FilterChip = memo(function FilterChip({
   fontsLoaded,
   icon,
   label,
+  variant = 'status',
 }: {
   active?: boolean;
   chevron?: boolean;
@@ -735,6 +781,7 @@ const FilterChip = memo(function FilterChip({
   fontsLoaded?: boolean;
   icon?: 'birthday' | 'trending';
   label: string;
+  variant?: FeedVariant;
 }) {
   return (
     <Pressable
@@ -743,12 +790,12 @@ const FilterChip = memo(function FilterChip({
         active ? styles.filterChipActive : styles.filterChipInactive,
       ]}
     >
-      {icon === 'trending' ? (
-        <Ionicons color="rgba(255,255,255,0.75)" name="flame-outline" size={16} />
-      ) : null}
-      {icon === 'birthday' ? (
-        <FontAwesome5 color="rgba(255,255,255,0.75)" name="birthday-cake" size={14} />
-      ) : null}
+      {icon === 'trending'
+        ? <Ionicons color="rgba(255,255,255,0.75)" name="flame-outline" size={16} />
+        : null}
+      {icon === 'birthday'
+        ? <FontAwesome5 color="rgba(255,255,255,0.75)" name="birthday-cake" size={14} />
+        : null}
       <Text
         style={[
           styles.filterChipText,
@@ -764,10 +811,39 @@ const FilterChip = memo(function FilterChip({
       >
         {label}
       </Text>
-      {chevron ? <Ionicons color="rgba(255,255,255,0.75)" name="chevron-down" size={12} /> : null}
+      {chevron
+        ? <Ionicons color="rgba(255,255,255,0.75)" name="chevron-down" size={12} />
+        : null}
     </Pressable>
   );
 });
+
+function RemoteIcon({
+  source,
+  style,
+}: {
+  source: string | number;
+  style?: object;
+}) {
+  return (
+    <Image
+      cachePolicy="memory-disk"
+      contentFit="contain"
+      source={typeof source === 'string' ? { uri: source } : source}
+      style={style}
+    />
+  );
+}
+
+function LocalIcon({
+  source,
+  style,
+}: {
+  source: number;
+  style?: object;
+}) {
+  return <RNImage resizeMode="contain" source={source} style={style} />;
+}
 
 const ActionButton = memo(function ActionButton({
   customType,
@@ -789,12 +865,7 @@ const ActionButton = memo(function ActionButton({
   return (
     <Pressable onPress={onPress} style={styles.actionItem}>
       <View style={styles.actionItemContent}>
-        <View
-          style={[
-            styles.actionIconWrap,
-            { height: size, width: size },
-          ]}
-        >
+        <View style={[styles.actionIconWrap, { height: size, width: size }]}>
           {customType === 'download' ? (
             <ActionPngIcon source={ASSETS.downloadButton} />
           ) : customType === 'edit-status' ? (
@@ -836,11 +907,7 @@ function ActionPngIcon({
   style?: object;
 }) {
   return (
-    <Image
-      contentFit="contain"
-      source={source}
-      style={[styles.actionPngIcon, style]}
-    />
+    <Image contentFit="contain" source={source} style={[styles.actionPngIcon, style]} />
   );
 }
 
@@ -895,11 +962,15 @@ function ActionBarSpacer() {
   return <View style={styles.actionBarSpacer} />;
 }
 
-function normalizeFeedIndex(index: number) {
-  return ((index % FEED_ITEMS.length) + FEED_ITEMS.length) % FEED_ITEMS.length;
+function normalizeFeedIndex(index: number, itemCount: number) {
+  return ((index % itemCount) + itemCount) % itemCount;
 }
 
 async function warmFeedImage(item: FeedItem) {
+  if (item.mediaType !== 'image') {
+    return;
+  }
+
   if (feedImageWarmCache.has(item.key)) {
     return;
   }
@@ -913,15 +984,55 @@ async function warmFeedImage(item: FeedItem) {
   }
 }
 
+const FeedVideo = memo(function FeedVideo({
+  isActive,
+  source,
+}: {
+  isActive: boolean;
+  source: number;
+}) {
+  const player = useVideoPlayer(source, (nextPlayer) => {
+    nextPlayer.loop = true;
+    nextPlayer.muted = false;
+    nextPlayer.volume = 1;
+    nextPlayer.audioMixingMode = 'doNotMix';
+  });
+
+  useEffect(() => {
+    if (isActive) {
+      player.currentTime = 0;
+      player.play();
+      return;
+    }
+
+    player.pause();
+    player.currentTime = 0;
+  }, [isActive, player]);
+
+  return (
+    <VideoView
+      allowsPictureInPicture={false}
+      contentFit="contain"
+      fullscreenOptions={{ enable: false }}
+      nativeControls={false}
+      player={player}
+      showsTimecodes={false}
+      style={styles.posterImage}
+    />
+  );
+});
+
 const PosterCard = memo(function PosterCard({
+  isActive,
   item,
   posterAreaHeight,
   posterBottomInset,
   width,
 }: {
+  isActive: boolean;
   item: FeedItem;
   posterAreaHeight: number;
-  posterBottomInset: Animated.AnimatedInterpolation<string | number>;
+  posterBottomInset: Animated.AnimatedInterpolation<string | number> | number;
   width: number;
 }) {
   return (
@@ -934,23 +1045,37 @@ const PosterCard = memo(function PosterCard({
           },
         ]}
       >
-        <Image
-          cachePolicy="memory-disk"
-          contentFit="contain"
-          recyclingKey={item.key}
-          source={item.source}
-          style={styles.posterImage}
-        />
+        {item.mediaType === 'video' ? (
+          <FeedVideo isActive={isActive} source={item.source} />
+        ) : (
+          <Image
+            cachePolicy="memory-disk"
+            contentFit="contain"
+            recyclingKey={item.key}
+            source={item.source}
+            style={styles.posterImage}
+          />
+        )}
       </Animated.View>
     </View>
   );
 });
 
 function FeedScreen({
+  onOpenFeedVariantMenu,
   onOpenProfile,
+  variant,
 }: {
+  onOpenFeedVariantMenu: () => void;
   onOpenProfile: () => void;
+  variant: FeedVariant;
 }) {
+  const isHybridVariant = variant === 'hybrid';
+  const isLegacyVariant = variant === 'legacy';
+  const isStatusVariant = variant === 'status';
+  const feedItems = STATUS_FEED_ITEMS;
+  const loopedFeedItems = useMemo(() => getLoopedFeedItems(feedItems), [feedItems]);
+  const topFilters = isStatusVariant ? STATUS_TOP_FILTERS : LEGACY_TOP_FILTERS;
   const [fontsLoaded, fontsError] = useFonts(GOOGLE_SANS_FONT_MAP);
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -962,25 +1087,41 @@ function FeedScreen({
   const [filterWrapHeight, setFilterWrapHeight] = useState(0);
   const [activeFeedIndex, setActiveFeedIndex] = useState(0);
   const resolvedHeaderHeight =
-    insets.top + 8 + filterWrapHeight + HEADER_BOTTOM_PADDING;
+    insets.top +
+    8 +
+    (isStatusVariant ? HEADER_TITLE_ROW_HEIGHT : 0) +
+    filterWrapHeight +
+    HEADER_BOTTOM_PADDING;
   const resolvedBottomInset = Math.min(insets.bottom, MAX_BOTTOM_VISUAL_INSET);
   const resolvedBottomNavHeight = BOTTOM_NAV_HEIGHT + resolvedBottomInset;
-  const resolvedActionBarHeight = ACTION_BAR_HEIGHT;
+  const resolvedDockHeight = ACTION_ROW_HEIGHT;
+  const resolvedActionBarHeight = isStatusVariant
+    ? resolvedDockHeight + resolvedBottomInset
+    : isHybridVariant
+      ? resolvedDockHeight
+      : ACTION_BAR_HEIGHT;
   const posterAreaHeight = height - resolvedHeaderHeight;
-  const activeFeedItem = FEED_ITEMS[activeFeedIndex] ?? FEED_ITEMS[0];
+  const activeFeedItem = feedItems[activeFeedIndex] ?? feedItems[0];
   const auraParams = DEFAULT_AURA_PARAMS;
   const posterBottomInset = useMemo(
     () =>
-      chromeVisibility.interpolate({
-        inputRange: [0, 1],
-        outputRange: [
-          resolvedActionBarHeight + resolvedBottomInset,
-          resolvedActionBarHeight + resolvedBottomNavHeight,
-        ],
-      }),
+      isStatusVariant
+        ? resolvedActionBarHeight
+        : isHybridVariant
+          ? resolvedDockHeight + resolvedBottomNavHeight
+        : chromeVisibility.interpolate({
+            inputRange: [0, 1],
+            outputRange: [
+              resolvedActionBarHeight + resolvedBottomInset,
+              resolvedActionBarHeight + resolvedBottomNavHeight,
+            ],
+          }),
     [
       chromeVisibility,
+      isHybridVariant,
+      isStatusVariant,
       resolvedActionBarHeight,
+      resolvedDockHeight,
       resolvedBottomInset,
       resolvedBottomNavHeight,
     ],
@@ -1025,7 +1166,7 @@ function FeedScreen({
 
     const backdropHeight = resolvedHeaderHeight + posterAreaHeight;
 
-    FEED_ITEMS.forEach((item) => {
+    feedItems.forEach((item) => {
       getPosterBackdropModel(
         item.palette.dominantHex,
         item.palette.auraPalette,
@@ -1034,7 +1175,7 @@ function FeedScreen({
         auraParams,
       );
     });
-  }, [auraParams, posterAreaHeight, resolvedHeaderHeight, width]);
+  }, [auraParams, feedItems, posterAreaHeight, resolvedHeaderHeight, width]);
 
   useEffect(() => {
     const itemsToWarm = new Set<FeedItem>();
@@ -1044,7 +1185,7 @@ function FeedScreen({
       offset <= FEED_IMAGE_PRELOAD_AHEAD_COUNT;
       offset += 1
     ) {
-      const item = FEED_ITEMS[normalizeFeedIndex(activeFeedIndex + offset)];
+      const item = feedItems[normalizeFeedIndex(activeFeedIndex + offset, feedItems.length)];
 
       if (item) {
         itemsToWarm.add(item);
@@ -1054,11 +1195,20 @@ function FeedScreen({
     itemsToWarm.forEach((item) => {
       void warmFeedImage(item);
     });
-  }, [activeFeedIndex]);
+  }, [activeFeedIndex, feedItems]);
+
+  useEffect(() => {
+    feedListRef.current?.scrollToOffset({ animated: false, offset: 0 });
+    activeFeedIndexRef.current = 0;
+    lastScrollOffsetRef.current = 0;
+    setActiveFeedIndex(0);
+    chromeVisibility.setValue(1);
+    isChromeVisibleRef.current = true;
+  }, [chromeVisibility, variant]);
 
   const commitActiveFeedIndex = (offsetY: number) => {
     const nextIndex = Math.round(offsetY / posterAreaHeight);
-    const normalizedIndex = normalizeFeedIndex(nextIndex);
+    const normalizedIndex = normalizeFeedIndex(nextIndex, feedItems.length);
 
     if (normalizedIndex === activeFeedIndexRef.current) {
       return;
@@ -1075,6 +1225,7 @@ function FeedScreen({
 
     const normalizedIndex = normalizeFeedIndex(
       Math.round(offsetY / posterAreaHeight),
+      feedItems.length,
     );
 
     if (normalizedIndex === activeFeedIndexRef.current) {
@@ -1103,14 +1254,16 @@ function FeedScreen({
     nativeEvent,
   }: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetY = nativeEvent.contentOffset.y;
-    const deltaY = offsetY - lastScrollOffsetRef.current;
+    if (isLegacyVariant) {
+      const deltaY = offsetY - lastScrollOffsetRef.current;
 
-    if (offsetY <= 0) {
-      setChromeVisible(true);
-    } else if (deltaY > SWIPE_DIRECTION_THRESHOLD) {
-      setChromeVisible(false);
-    } else if (deltaY < -SWIPE_DIRECTION_THRESHOLD) {
-      setChromeVisible(true);
+      if (offsetY <= 0) {
+        setChromeVisible(true);
+      } else if (deltaY > SWIPE_DIRECTION_THRESHOLD) {
+        setChromeVisible(false);
+      } else if (deltaY < -SWIPE_DIRECTION_THRESHOLD) {
+        setChromeVisible(true);
+      }
     }
 
     syncActiveFeedIndexWithDestination(offsetY);
@@ -1137,7 +1290,7 @@ function FeedScreen({
 
     commitActiveFeedIndex(offsetY);
 
-    if (nextIndex !== LOOPED_FEED_ITEMS.length - 1) {
+    if (nextIndex !== loopedFeedItems.length - 1) {
       return;
     }
 
@@ -1160,26 +1313,28 @@ function FeedScreen({
   };
 
   const renderPosterItem = useCallback(
-    ({ item }: { item: FeedItem }) => (
+    ({ index, item }: { index: number; item: FeedItem }) => (
       <PosterCard
+        isActive={normalizeFeedIndex(index, feedItems.length) === activeFeedIndex}
         item={item}
         posterAreaHeight={posterAreaHeight}
         posterBottomInset={posterBottomInset}
         width={width}
       />
     ),
-    [posterAreaHeight, posterBottomInset, width],
+    [activeFeedIndex, feedItems.length, posterAreaHeight, posterBottomInset, width],
   );
 
   const renderActionItem = useCallback(
-    ({ item: action }: { item: (typeof ACTIONS)[number] }) => (
+    ({ item: action }: { item: (typeof LEGACY_ACTIONS)[number] }) => (
       <ActionButton
         {...action}
         fontsError={fontsError}
         fontsLoaded={fontsLoaded}
+        onPress={action.customType === 'more' ? onOpenFeedVariantMenu : undefined}
       />
     ),
-    [fontsError, fontsLoaded],
+    [fontsError, fontsLoaded, onOpenFeedVariantMenu],
   );
 
   return (
@@ -1203,13 +1358,28 @@ function FeedScreen({
             },
           ]}
         >
+          {isStatusVariant ? (
+            <View style={styles.topBar}>
+              <View style={styles.topBarBrand}>
+                <LocalIcon source={STATUS_ASSETS.statusBadge} style={styles.topBarBadge} />
+              </View>
+              <Pressable onPress={onOpenProfile} style={styles.topBarProfileButton}>
+                <Image
+                  contentFit="cover"
+                  source={STATUS_ASSETS.profileButton}
+                  style={styles.topBarProfileImage}
+                />
+              </Pressable>
+            </View>
+          ) : null}
           <View onLayout={handleFilterWrapLayout} style={styles.filterWrap}>
-            {TOP_FILTERS.map((filter) => (
+            {topFilters.map((filter) => (
               <FilterChip
                 key={filter.label}
                 {...filter}
                 fontsError={fontsError}
                 fontsLoaded={fontsLoaded}
+                variant={variant}
               />
             ))}
           </View>
@@ -1217,7 +1387,7 @@ function FeedScreen({
 
         <View style={[styles.posterArea, { height: posterAreaHeight }]}>
           <FlatList
-            data={LOOPED_FEED_ITEMS}
+            data={loopedFeedItems}
             decelerationRate={
               Platform.OS === 'android'
                 ? ANDROID_FEED_DECELERATION_RATE
@@ -1243,6 +1413,7 @@ function FeedScreen({
             snapToAlignment="start"
             snapToInterval={posterAreaHeight}
             style={styles.posterList}
+            extraData={activeFeedIndex}
             ref={feedListRef}
             updateCellsBatchingPeriod={16}
             windowSize={FEED_WINDOW_SIZE}
@@ -1250,71 +1421,204 @@ function FeedScreen({
         </View>
       </View>
 
-      <Animated.View
-        renderToHardwareTextureAndroid
-        shouldRasterizeIOS
-        style={[
-          styles.bottomNavContainer,
-          {
-            opacity: bottomChromeOpacity,
-            transform: [{ translateY: bottomChromeTranslateY }],
-          },
-        ]}
-      >
-        <View style={[styles.bottomNavShell, { paddingBottom: resolvedBottomInset }]}>
-          <View style={styles.bottomNav}>
-            {NAV_ITEMS.map((item) => (
-              <BottomNavItem
-                key={item.key}
-                Icon={item.Icon}
-                onPress={item.key === 'profile' ? onOpenProfile : undefined}
-              />
-            ))}
+      {isStatusVariant ? (
+        <View
+          style={[
+            styles.actionBarContainer,
+            {
+              paddingBottom: resolvedBottomInset,
+            },
+          ]}
+        >
+            <View style={styles.actionBar}>
+              <Pressable style={styles.shareButton}>
+                <View style={styles.shareButtonIconWrap}>
+                  <LocalIcon source={STATUS_ASSETS.whatsappGlyph} style={styles.shareButtonIcon} />
+                </View>
+                <Text
+                  style={[
+                    styles.shareButtonLabel,
+                  {
+                    fontFamily: getGoogleSansFontFamily(
+                      !!fontsLoaded,
+                      fontsError,
+                      'medium',
+                    ),
+                  },
+                ]}
+              >
+                Share
+              </Text>
+            </Pressable>
+            <Pressable style={styles.actionIconButton}>
+              <LocalIcon source={STATUS_ASSETS.edit} style={styles.actionEditGlyph} />
+            </Pressable>
+            <Pressable onPress={onOpenFeedVariantMenu} style={styles.actionIconButton}>
+              <LocalIcon source={STATUS_ASSETS.more} style={styles.actionMoreGlyph} />
+            </Pressable>
           </View>
         </View>
-      </Animated.View>
+      ) : isHybridVariant ? (
+        <>
+          <View
+            style={[
+              styles.hybridDockContainer,
+              {
+                bottom: resolvedBottomNavHeight,
+              },
+            ]}
+          >
+            <View style={styles.actionBar}>
+              <Pressable style={styles.shareButton}>
+                <View style={styles.shareButtonIconWrap}>
+                  <LocalIcon source={STATUS_ASSETS.whatsappGlyph} style={styles.shareButtonIcon} />
+                </View>
+                <Text
+                  style={[
+                    styles.shareButtonLabel,
+                    {
+                      fontFamily: getGoogleSansFontFamily(
+                        !!fontsLoaded,
+                        fontsError,
+                        'medium',
+                      ),
+                    },
+                  ]}
+                >
+                  Share
+                </Text>
+              </Pressable>
+              <Pressable style={styles.actionIconButton}>
+                <LocalIcon source={STATUS_ASSETS.edit} style={styles.actionEditGlyph} />
+              </Pressable>
+              <Pressable onPress={onOpenFeedVariantMenu} style={styles.actionIconButton}>
+                <LocalIcon source={STATUS_ASSETS.more} style={styles.actionMoreGlyph} />
+              </Pressable>
+            </View>
+          </View>
 
-      <Animated.View
-        renderToHardwareTextureAndroid
-        shouldRasterizeIOS
-        style={[
-          styles.actionBarContainer,
-          {
-            paddingBottom: actionBarBottomPadding,
-            transform: [{ translateY: actionBarBottomOffset }],
-          },
-        ]}
-      >
-        <FlatList
-          automaticallyAdjustContentInsets={false}
-          contentContainerStyle={styles.actionBarContent}
-          contentInsetAdjustmentBehavior="never"
-          data={ACTIONS}
-          horizontal
-          ItemSeparatorComponent={ActionBarSpacer}
-          keyExtractor={(item) => item.label}
-          renderItem={renderActionItem}
-          showsHorizontalScrollIndicator={false}
-          style={styles.actionBar}
-        />
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.bottomNavSeparator, { opacity: chromeVisibility }]}
-        />
-      </Animated.View>
+          <View style={styles.bottomNavContainer}>
+            <View style={[styles.bottomNavShell, { paddingBottom: resolvedBottomInset }]}>
+              <View style={styles.bottomNav}>
+                {HYBRID_NAV_ITEMS.map((item) => (
+                  <BottomNavItem
+                    key={item.key}
+                    Icon={item.Icon}
+                    onPress={item.key === 'profile' ? onOpenProfile : undefined}
+                  />
+                ))}
+              </View>
+            </View>
+          </View>
+        </>
+      ) : (
+        <>
+          <Animated.View
+            renderToHardwareTextureAndroid
+            shouldRasterizeIOS
+            style={[
+              styles.bottomNavContainer,
+              {
+                opacity: bottomChromeOpacity,
+                transform: [{ translateY: bottomChromeTranslateY }],
+              },
+            ]}
+          >
+            <View style={[styles.bottomNavShell, { paddingBottom: resolvedBottomInset }]}>
+              <View style={styles.bottomNav}>
+                {NAV_ITEMS.map((item) => (
+                  <BottomNavItem
+                    key={item.key}
+                    Icon={item.Icon}
+                    onPress={item.key === 'profile' ? onOpenProfile : undefined}
+                  />
+                ))}
+              </View>
+            </View>
+          </Animated.View>
+
+          <Animated.View
+            renderToHardwareTextureAndroid
+            shouldRasterizeIOS
+            style={[
+              styles.actionBarContainer,
+              {
+                paddingBottom: actionBarBottomPadding,
+                transform: [{ translateY: actionBarBottomOffset }],
+              },
+            ]}
+          >
+            <FlatList
+              automaticallyAdjustContentInsets={false}
+              contentContainerStyle={styles.actionBarContent}
+              contentInsetAdjustmentBehavior="never"
+              data={LEGACY_ACTIONS}
+              horizontal
+              ItemSeparatorComponent={ActionBarSpacer}
+              keyExtractor={(item) => item.label}
+              renderItem={renderActionItem}
+              showsHorizontalScrollIndicator={false}
+              style={styles.legacyActionBar}
+            />
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.bottomNavSeparator, { opacity: chromeVisibility }]}
+            />
+          </Animated.View>
+        </>
+      )}
     </View>
   );
 }
 
 export default function App() {
-  const [activeScreen, setActiveScreen] = useState<AppScreen>('profile');
+  const [activeScreen, setActiveScreen] = useState<AppScreen>('feed');
+  const [feedVariant, setFeedVariant] = useState<FeedVariant>(DEFAULT_FEED_VARIANT);
+
+  const openFeedVariantMenu = useCallback(() => {
+    const optionLabels = FEED_VARIANT_OPTIONS.map((option) => FEED_VARIANT_LABELS[option]);
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          cancelButtonIndex: optionLabels.length,
+          options: [...optionLabels, 'Cancel'],
+          title: 'Switch Feed Design',
+        },
+        (selectedIndex) => {
+          if (selectedIndex >= 0 && selectedIndex < FEED_VARIANT_OPTIONS.length) {
+            setFeedVariant(FEED_VARIANT_OPTIONS[selectedIndex]);
+          }
+        },
+      );
+
+      return;
+    }
+
+    Alert.alert(
+      'Switch Feed Design',
+      undefined,
+      [
+        ...FEED_VARIANT_OPTIONS.map((option) => ({
+          onPress: () => setFeedVariant(option),
+          text: FEED_VARIANT_LABELS[option],
+        })),
+        { style: 'cancel' as const, text: 'Cancel' },
+      ],
+      { cancelable: true },
+    );
+  }, []);
 
   return (
     <SafeAreaProvider>
       {activeScreen === 'profile' ? (
         <ProfilePrototypeScreen onBack={() => setActiveScreen('feed')} />
       ) : (
-        <FeedScreen onOpenProfile={() => setActiveScreen('profile')} />
+        <FeedScreen
+          onOpenFeedVariantMenu={openFeedVariantMenu}
+          onOpenProfile={() => setActiveScreen('profile')}
+          variant={feedVariant}
+        />
       )}
     </SafeAreaProvider>
   );
@@ -1322,21 +1626,36 @@ export default function App() {
 
 const styles = StyleSheet.create({
   actionBar: {
-    backgroundColor: '#000000',
-    height: ACTION_BAR_HEIGHT,
-  },
-  actionCircleBase: {
     alignItems: 'center',
-    borderRadius: ACTION_BUTTON_SIZE / 2,
-    height: ACTION_BUTTON_SIZE,
+    backgroundColor: '#000000',
+    flexDirection: 'row',
+    gap: 12,
+    height: ACTION_ROW_HEIGHT,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  actionIconButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.13)',
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: ACTION_ICON_BUTTON_SIZE / 2,
+    borderWidth: 1.1,
+    height: ACTION_ICON_BUTTON_SIZE,
     justifyContent: 'center',
-    overflow: 'hidden',
-    width: ACTION_BUTTON_SIZE,
+    width: ACTION_ICON_BUTTON_SIZE,
+  },
+  actionEditGlyph: {
+    height: 18,
+    width: 18,
+  },
+  actionMoreGlyph: {
+    height: 22,
+    width: 22,
   },
   actionBarContent: {
     alignItems: 'center',
-    paddingHorizontal: ACTION_BAR_HORIZONTAL_PADDING,
     paddingBottom: ACTION_BAR_VERTICAL_PADDING,
+    paddingHorizontal: ACTION_BAR_HORIZONTAL_PADDING,
     paddingTop: ACTION_BAR_VERTICAL_PADDING,
   },
   actionBarSpacer: {
@@ -1369,6 +1688,35 @@ const styles = StyleSheet.create({
   actionPngIcon: {
     height: ACTION_BUTTON_SIZE,
     width: ACTION_BUTTON_SIZE,
+  },
+  bottomNav: {
+    flexDirection: 'row',
+    height: BOTTOM_NAV_HEIGHT,
+  },
+  bottomNavContainer: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+  },
+  bottomNavIconWrap: {
+    alignItems: 'center',
+    height: BOTTOM_NAV_HEIGHT,
+    justifyContent: 'center',
+    width: 40,
+  },
+  bottomNavItem: {
+    alignItems: 'center',
+    flex: 1,
+    height: BOTTOM_NAV_HEIGHT,
+    justifyContent: 'center',
+  },
+  bottomNavSeparator: {
+    backgroundColor: '#1A1A1A',
+    height: 1,
+  },
+  bottomNavShell: {
+    backgroundColor: '#000000',
   },
   editStatusAvatar: {
     height: '100%',
@@ -1407,45 +1755,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: -8,
   },
-  instagramBorder: {
-    ...StyleSheet.absoluteFillObject,
-    borderColor: 'rgba(255,255,255,0.2)',
-    borderRadius: ACTION_BUTTON_SIZE / 2,
-    borderWidth: 2,
-  },
-  instagramButton: {
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4.33 },
-    shadowOpacity: 0.3,
-    shadowRadius: 26,
-  },
-  instagramButtonImage: {
-    height: ACTION_BUTTON_SIZE,
-    width: ACTION_BUTTON_SIZE,
-  },
-  bottomNav: {
-    flexDirection: 'row',
-    height: BOTTOM_NAV_HEIGHT,
-  },
-  bottomNavIconWrap: {
-    alignItems: 'center',
-    height: BOTTOM_NAV_HEIGHT,
-    justifyContent: 'center',
-    width: 40,
-  },
-  bottomNavItem: {
-    alignItems: 'center',
-    flex: 1,
-    height: BOTTOM_NAV_HEIGHT,
-    justifyContent: 'center',
-  },
-  bottomNavShell: {
-    backgroundColor: '#000000',
-  },
-  bottomNavSeparator: {
-    backgroundColor: '#1A1A1A',
-    height: 1,
-  },
   screenContent: {
     flex: 1,
   },
@@ -1462,10 +1771,21 @@ const styles = StyleSheet.create({
   },
   filterChipActive: {
     backgroundColor: 'rgba(255,255,255,0.18)',
-    borderColor: 'rgba(255,255,255,0.16)',
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   filterChipInactive: {
-    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'transparent',
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  filterChipChevron: {
+    height: 12,
+    opacity: 0.75,
+    width: 12,
+  },
+  filterChipIcon: {
+    height: 16,
+    opacity: 0.75,
+    width: 16,
   },
   filterChipText: {
     fontSize: 12,
@@ -1485,11 +1805,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: 16,
-    position: 'relative',
+    paddingTop: 12,
     rowGap: 8,
   },
   header: {
     overflow: 'hidden',
+  },
+  hybridDockContainer: {
+    backgroundColor: '#000000',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+  },
+  instagramButtonImage: {
+    height: ACTION_BUTTON_SIZE,
+    width: ACTION_BUTTON_SIZE,
+  },
+  legacyActionBar: {
+    backgroundColor: '#000000',
+    height: ACTION_BAR_HEIGHT,
   },
   posterArea: {
     overflow: 'hidden',
@@ -1518,6 +1852,35 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
   },
+  shareButton: {
+    alignItems: 'center',
+    backgroundColor: '#113529',
+    borderColor: '#25473E',
+    borderRadius: 100,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 4,
+    height: ACTION_ICON_BUTTON_SIZE,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  shareButtonIcon: {
+    height: 18,
+    width: 18,
+  },
+  shareButtonIconWrap: {
+    alignItems: 'center',
+    height: 24,
+    justifyContent: 'center',
+    width: 24,
+  },
+  shareButtonLabel: {
+    color: '#EDFFEB',
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 24,
+  },
   screen: {
     backgroundColor: '#000000',
     flex: 1,
@@ -1529,10 +1892,31 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
   },
-  bottomNavContainer: {
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
+  topBar: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    height: HEADER_TITLE_ROW_HEIGHT,
+    justifyContent: 'space-between',
+    paddingLeft: 18,
+    paddingRight: 16,
+  },
+  topBarBadge: {
+    height: 22,
+    width: 81,
+  },
+  topBarBrand: {
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  topBarProfileButton: {
+    borderRadius: 18,
+    borderWidth: 0,
+    height: 36,
+    overflow: 'hidden',
+    width: 36,
+  },
+  topBarProfileImage: {
+    height: '100%',
+    width: '100%',
   },
 });
