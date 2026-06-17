@@ -3,6 +3,7 @@ import type { ComponentType } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
+import MaskedView from '@react-native-masked-view/masked-view';
 import { Image } from 'expo-image';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import ProfilePrototypeScreen from './screens/ProfilePrototypeScreen';
@@ -10,6 +11,7 @@ import Svg, {
   Circle,
   Defs,
   LinearGradient as SvgLinearGradient,
+  Path,
   RadialGradient,
   Rect,
   Stop,
@@ -19,6 +21,8 @@ import BottomNav1 from './assets/bottom-nav/1.svg';
 import BottomNav2 from './assets/bottom-nav/2.svg';
 import BottomNav3 from './assets/bottom-nav/3.svg';
 import BottomNav4 from './assets/bottom-nav/4.svg';
+import PaymentNudgeArrowRight from './assets/payment-nudge/arrow-right.svg';
+import PaymentNudgeVerified from './assets/payment-nudge/verified.svg';
 import {
   ActionSheetIOS,
   Animated,
@@ -56,6 +60,7 @@ const ASSETS = {
   feed9: require('./assets/feed/9.png'),
   feed10: require('./assets/feed/10.png'),
   feed11: require('./assets/feed/11.png'),
+  feed12: require('./assets/feed/IMG-20260610-WA0079.jpg.jpeg'),
   feedVideo1: require('./assets/feed/video-1.mp4'),
   feedVideo2: require('./assets/feed/video-2.mp4'),
   feedVideo3: require('./assets/feed/video-3.mp4'),
@@ -67,10 +72,31 @@ const ASSETS = {
 const STATUS_ASSETS = {
   edit: require('./assets/status feed/generated/edit-tight.png'),
   more: require('./assets/status feed/generated/more-tight.png'),
-  profileButton: require('./assets/status feed/profile.png'),
   statusBadge: require('./assets/status feed/logo.png'),
   whatsappGlyph: require('./assets/status feed/generated/whatsapp-tight.png'),
 };
+
+const PAYMENT_NUDGE_ASSETS = {
+  avatar: require('./assets/payment-nudge/avatar-user.png'),
+  cardHero: require('./assets/payment-nudge/hero-overlay.png'),
+  cardHero2: require('./assets/payment-nudge/hero-overlay2.png'),
+  cardHero3: require('./assets/payment-nudge/hero-overlay3.png'),
+};
+
+const PAYMENT_NUDGE_HEROES = [
+  {
+    dominantHex: '#8C66AF',
+    source: PAYMENT_NUDGE_ASSETS.cardHero,
+  },
+  {
+    dominantHex: '#847949',
+    source: PAYMENT_NUDGE_ASSETS.cardHero2,
+  },
+  {
+    dominantHex: '#B4755A',
+    source: PAYMENT_NUDGE_ASSETS.cardHero3,
+  },
+] as const;
 
 const FIGMA_ASSETS = {
   birthday: 'https://www.figma.com/api/mcp/asset/afec2932-17e1-4696-a98a-060db56e0b3f',
@@ -105,7 +131,17 @@ const HEADER_BOTTOM_PADDING = 12;
 const HEADER_TITLE_ROW_HEIGHT = 40;
 const FONT_FAMILY_REGULAR = 'GoogleSans-Regular';
 const FONT_FAMILY_MEDIUM = 'GoogleSans-Medium';
+const FONT_FAMILY_SEMIBOLD = 'GoogleSans-SemiBold';
 const FONT_FAMILY_BOLD = 'GoogleSans-Bold';
+const PAYMENT_NUDGE_CARD_RADIUS = 12;
+const PAYMENT_NUDGE_CTA_RADIUS = 10;
+const PAYMENT_NUDGE_CARD_HEIGHT = 428;
+const PAYMENT_NUDGE_CTA_HEIGHT = 48;
+const PAYMENT_NUDGE_SQUIRCLE_EXPONENT = 4.6;
+const PAYMENT_NUDGE_CARD_MASK_RADIUS = 24;
+const PAYMENT_NUDGE_CTA_MASK_RADIUS = 20;
+const PAYMENT_NUDGE_HERO_TRANSITION_DURATION = 583;
+const PAYMENT_NUDGE_HERO_AUTO_SCROLL_INTERVAL_MS = 2268;
 const ANDROID_FEED_DECELERATION_RATE = 0.998;
 const FEED_IMAGE_PRELOAD_AHEAD_COUNT = 3;
 const FEED_IMAGE_PRELOAD_BEHIND_COUNT = 1;
@@ -115,6 +151,9 @@ const GOOGLE_SANS_FONT_MAP = {
     uri: 'https://fonts.gstatic.com/s/googlesans/v67/4Ua_rENHsxJlGDuGo1OIlJfC6l_24rlCK1Yo_Iqcsih3SAyH6cAwhX9RFD48TE63OOYKtrwEIKli.ttf',
   },
   [FONT_FAMILY_MEDIUM]: {
+    uri: 'https://fonts.gstatic.com/s/googlesans/v67/4Ua_rENHsxJlGDuGo1OIlJfC6l_24rlCK1Yo_Iqcsih3SAyH6cAwhX9RFD48TE63OOYKtrw2IKli.ttf',
+  },
+  [FONT_FAMILY_SEMIBOLD]: {
     uri: 'https://fonts.gstatic.com/s/googlesans/v67/4Ua_rENHsxJlGDuGo1OIlJfC6l_24rlCK1Yo_Iqcsih3SAyH6cAwhX9RFD48TE63OOYKtrw2IKli.ttf',
   },
   [FONT_FAMILY_BOLD]: {
@@ -181,7 +220,7 @@ const LEGACY_ACTIONS: Array<{
 function getGoogleSansFontFamily(
   fontsLoaded: boolean,
   fontsError: Error | null | undefined,
-  variant: 'regular' | 'medium' | 'bold',
+  variant: 'regular' | 'medium' | 'semibold' | 'bold',
 ) {
   if (!fontsLoaded || fontsError) {
     return undefined;
@@ -191,11 +230,73 @@ function getGoogleSansFontFamily(
     return FONT_FAMILY_BOLD;
   }
 
+  if (variant === 'semibold') {
+    return FONT_FAMILY_SEMIBOLD;
+  }
+
   if (variant === 'medium') {
     return FONT_FAMILY_MEDIUM;
   }
 
   return FONT_FAMILY_REGULAR;
+}
+
+function buildSmoothRoundedRectPath(
+  width: number,
+  height: number,
+  radius: number,
+  exponent: number = PAYMENT_NUDGE_SQUIRCLE_EXPONENT,
+  cornerSteps: number = 20,
+) {
+  const safeWidth = Math.max(width, 1);
+  const safeHeight = Math.max(height, 1);
+  const safeRadius = Math.max(0, Math.min(radius, safeWidth / 2, safeHeight / 2));
+
+  if (safeRadius === 0) {
+    return `M 0 0 L ${safeWidth.toFixed(3)} 0 L ${safeWidth.toFixed(3)} ${safeHeight.toFixed(
+      3,
+    )} L 0 ${safeHeight.toFixed(3)} Z`;
+  }
+
+  const topLeft = { x: safeRadius, y: safeRadius };
+  const topRight = { x: safeWidth - safeRadius, y: safeRadius };
+  const bottomRight = { x: safeWidth - safeRadius, y: safeHeight - safeRadius };
+  const bottomLeft = { x: safeRadius, y: safeHeight - safeRadius };
+  const points: string[] = [];
+
+  const pushCorner = (
+    centerX: number,
+    centerY: number,
+    startAngle: number,
+    endAngle: number,
+  ) => {
+    for (let index = 0; index <= cornerSteps; index += 1) {
+      const theta = startAngle + ((endAngle - startAngle) * index) / cornerSteps;
+      const cosTheta = Math.cos(theta);
+      const sinTheta = Math.sin(theta);
+      const x =
+        centerX +
+        safeRadius * Math.sign(cosTheta) * Math.pow(Math.abs(cosTheta), 2 / exponent);
+      const y =
+        centerY +
+        safeRadius * Math.sign(sinTheta) * Math.pow(Math.abs(sinTheta), 2 / exponent);
+
+      points.push(`L ${x.toFixed(3)} ${y.toFixed(3)}`);
+    }
+  };
+
+  points.push(`M ${safeRadius.toFixed(3)} 0.000`);
+  points.push(`L ${(safeWidth - safeRadius).toFixed(3)} 0.000`);
+  pushCorner(topRight.x, topRight.y, -Math.PI / 2, 0);
+  points.push(`L ${safeWidth.toFixed(3)} ${(safeHeight - safeRadius).toFixed(3)}`);
+  pushCorner(bottomRight.x, bottomRight.y, 0, Math.PI / 2);
+  points.push(`L ${safeRadius.toFixed(3)} ${safeHeight.toFixed(3)}`);
+  pushCorner(bottomLeft.x, bottomLeft.y, Math.PI / 2, Math.PI);
+  points.push(`L 0.000 ${safeRadius.toFixed(3)}`);
+  pushCorner(topLeft.x, topLeft.y, Math.PI, (3 * Math.PI) / 2);
+  points.push('Z');
+
+  return points.join(' ');
 }
 
 type FeedVariant = 'hybrid' | 'legacy' | 'status';
@@ -215,12 +316,31 @@ type PosterStagePalette = {
   dominantHex: string;
 };
 
-type FeedItem = {
+type BackdropState = {
+  auraPalette: AuraPalette;
+  dominantHex: string;
+};
+
+type BaseFeedItem = {
   key: string;
-  mediaType: 'image' | 'video';
   palette: PosterStagePalette;
+};
+
+type ImageFeedItem = BaseFeedItem & {
+  mediaType: 'image';
   source: number;
 };
+
+type VideoFeedItem = BaseFeedItem & {
+  mediaType: 'video';
+  source: number;
+};
+
+type PaymentNudgeFeedItem = BaseFeedItem & {
+  mediaType: 'payment-nudge';
+};
+
+type FeedItem = ImageFeedItem | VideoFeedItem | PaymentNudgeFeedItem;
 
 interface AuraParams {
   intensity: number;
@@ -532,8 +652,8 @@ function createFeedItem(
   key: string,
   dominantHex: string,
   source: number,
-  options?: Partial<Pick<FeedItem, 'mediaType'>>,
-): FeedItem {
+  options?: { mediaType?: 'image' | 'video' },
+): ImageFeedItem | VideoFeedItem {
   return {
     ...options,
     key,
@@ -546,20 +666,37 @@ function createFeedItem(
   };
 }
 
+function createPaymentNudgeFeedItem(
+  key: string,
+  dominantHex: string,
+): PaymentNudgeFeedItem {
+  return {
+    key,
+    mediaType: 'payment-nudge',
+    palette: {
+      auraPalette: getAuraPalette(dominantHex),
+      dominantHex,
+    },
+  };
+}
+
 const STATUS_FEED_ITEMS: FeedItem[] = [
-  createFeedItem('feed-1', '#E5E4DE', ASSETS.feed1),
+  createFeedItem('feed-2', '#621C4D', ASSETS.feed2),
   createFeedItem('feed-video-1', '#A67558', ASSETS.feedVideo1, {
     mediaType: 'video',
   }),
+  createPaymentNudgeFeedItem(
+    'feed-payment-nudge',
+    PAYMENT_NUDGE_HEROES[0].dominantHex,
+  ),
   createFeedItem('feed-video-2', '#AF7C61', ASSETS.feedVideo2, {
     mediaType: 'video',
   }),
   createFeedItem('feed-video-3', '#58543A', ASSETS.feedVideo3, {
     mediaType: 'video',
   }),
-  createFeedItem('feed-2', '#621C4D', ASSETS.feed2),
-  createFeedItem('feed-3', '#6E1B56', ASSETS.feed3),
   createFeedItem('feed-4', '#74BABE', ASSETS.feed4),
+  createFeedItem('feed-12', '#0A8A83', ASSETS.feed12),
   createFeedItem('feed-5', '#432918', ASSETS.feed5),
   createFeedItem('feed-8', '#02234E', ASSETS.feed8),
 ];
@@ -769,6 +906,7 @@ const PosterStageBackdrop = memo(function PosterStageBackdrop({
 const FilterChip = memo(function FilterChip({
   active = false,
   chevron = false,
+  compact = false,
   fontsError,
   fontsLoaded,
   icon,
@@ -777,6 +915,7 @@ const FilterChip = memo(function FilterChip({
 }: {
   active?: boolean;
   chevron?: boolean;
+  compact?: boolean;
   fontsError?: Error | null;
   fontsLoaded?: boolean;
   icon?: 'birthday' | 'trending';
@@ -787,6 +926,7 @@ const FilterChip = memo(function FilterChip({
     <Pressable
       style={[
         styles.filterChip,
+        compact ? styles.filterChipCompact : null,
         active ? styles.filterChipActive : styles.filterChipInactive,
       ]}
     >
@@ -799,6 +939,7 @@ const FilterChip = memo(function FilterChip({
       <Text
         style={[
           styles.filterChipText,
+          compact ? styles.filterChipTextCompact : null,
           {
             fontFamily: getGoogleSansFontFamily(
               !!fontsLoaded,
@@ -1022,19 +1163,450 @@ const FeedVideo = memo(function FeedVideo({
   );
 });
 
+const PaymentNudgeCard = memo(function PaymentNudgeCard({
+  activeHeroIndex,
+  fontsError,
+  fontsLoaded,
+  onHeroIndexChange,
+  posterBottomInset,
+  width,
+}: {
+  activeHeroIndex: number;
+  fontsError?: Error | null;
+  fontsLoaded?: boolean;
+  onHeroIndexChange: (index: number) => void;
+  posterBottomInset: Animated.AnimatedInterpolation<string | number> | number;
+  width: number;
+}) {
+  const cardWidth = Math.max(width - 40, 0);
+  const ctaWidth = Math.max(cardWidth - 24, 0);
+  const heroTranslateX = useRef(new Animated.Value(-activeHeroIndex * cardWidth)).current;
+  const autoScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animateToHeroRef = useRef<(targetIndex: number) => void>(() => {});
+  const indicatorValuesRef = useRef(
+    PAYMENT_NUDGE_HEROES.map((_, index) => new Animated.Value(index === activeHeroIndex ? 1 : 0)),
+  );
+  const activeHeroIndexRef = useRef(activeHeroIndex);
+  const isAnimatingHeroRef = useRef(false);
+  const virtualHeroIndexRef = useRef(activeHeroIndex);
+  const paymentNudgeSlides = useMemo(
+    () => [...PAYMENT_NUDGE_HEROES, PAYMENT_NUDGE_HEROES[0]],
+    [],
+  );
+  const paymentNudgeCardMaskPath = useMemo(
+    () =>
+      buildSmoothRoundedRectPath(
+        cardWidth,
+        PAYMENT_NUDGE_CARD_HEIGHT,
+        PAYMENT_NUDGE_CARD_MASK_RADIUS,
+      ),
+    [cardWidth],
+  );
+  const paymentNudgeCtaPath = useMemo(
+    () =>
+      buildSmoothRoundedRectPath(
+        ctaWidth,
+        PAYMENT_NUDGE_CTA_HEIGHT,
+        PAYMENT_NUDGE_CTA_MASK_RADIUS,
+      ),
+    [ctaWidth],
+  );
+
+  const clearAutoScroll = useCallback(() => {
+    if (autoScrollTimerRef.current) {
+      clearTimeout(autoScrollTimerRef.current);
+      autoScrollTimerRef.current = null;
+    }
+  }, []);
+
+  const syncIndicatorValues = useCallback((index: number) => {
+    indicatorValuesRef.current.forEach((value, indicatorIndex) => {
+      value.setValue(indicatorIndex === index ? 1 : 0);
+    });
+  }, []);
+
+  const scheduleAutoScroll = useCallback(() => {
+    clearAutoScroll();
+
+    autoScrollTimerRef.current = setTimeout(() => {
+      if (isAnimatingHeroRef.current) {
+        return;
+      }
+
+      const nextIndex = (activeHeroIndexRef.current + 1) % PAYMENT_NUDGE_HEROES.length;
+      animateToHeroRef.current(nextIndex);
+    }, PAYMENT_NUDGE_HERO_AUTO_SCROLL_INTERVAL_MS);
+  }, [clearAutoScroll]);
+
+  const animateToHero = useCallback(
+    (targetIndex: number) => {
+      if (
+        isAnimatingHeroRef.current ||
+        targetIndex === activeHeroIndexRef.current ||
+        targetIndex < 0 ||
+        targetIndex >= PAYMENT_NUDGE_HEROES.length
+      ) {
+        return;
+      }
+
+      clearAutoScroll();
+      isAnimatingHeroRef.current = true;
+      const targetVirtualIndex = virtualHeroIndexRef.current + 1;
+      onHeroIndexChange(targetIndex);
+
+      Animated.parallel([
+        Animated.timing(heroTranslateX, {
+          duration: PAYMENT_NUDGE_HERO_TRANSITION_DURATION,
+          easing: Easing.bezier(0.22, 0.8, 0.22, 1),
+          toValue: -targetVirtualIndex * cardWidth,
+          useNativeDriver: true,
+        }),
+        ...indicatorValuesRef.current.map((value, indicatorIndex) =>
+          Animated.timing(value, {
+            duration: PAYMENT_NUDGE_HERO_TRANSITION_DURATION,
+            easing: Easing.out(Easing.cubic),
+            toValue: indicatorIndex === targetIndex ? 1 : 0,
+            useNativeDriver: false,
+          }),
+        ),
+      ]).start(({ finished }) => {
+        if (finished) {
+          if (targetIndex === 0) {
+            virtualHeroIndexRef.current = 0;
+            heroTranslateX.setValue(0);
+          } else {
+            virtualHeroIndexRef.current = targetVirtualIndex;
+          }
+
+          activeHeroIndexRef.current = targetIndex;
+        } else {
+          heroTranslateX.setValue(-virtualHeroIndexRef.current * cardWidth);
+          syncIndicatorValues(activeHeroIndexRef.current);
+        }
+
+        isAnimatingHeroRef.current = false;
+        scheduleAutoScroll();
+      });
+    },
+    [cardWidth, clearAutoScroll, heroTranslateX, onHeroIndexChange, scheduleAutoScroll, syncIndicatorValues],
+  );
+  animateToHeroRef.current = animateToHero;
+
+  useEffect(() => {
+    if (isAnimatingHeroRef.current || activeHeroIndex === activeHeroIndexRef.current) {
+      return;
+    }
+
+    activeHeroIndexRef.current = activeHeroIndex;
+    virtualHeroIndexRef.current = activeHeroIndex;
+    heroTranslateX.setValue(-activeHeroIndex * cardWidth);
+    syncIndicatorValues(activeHeroIndex);
+  }, [activeHeroIndex, cardWidth, heroTranslateX, syncIndicatorValues]);
+
+  useEffect(() => {
+    heroTranslateX.setValue(-virtualHeroIndexRef.current * cardWidth);
+  }, [cardWidth, heroTranslateX]);
+
+  useEffect(() => {
+    scheduleAutoScroll();
+
+    return () => clearAutoScroll();
+  }, [clearAutoScroll, scheduleAutoScroll]);
+
+  const paymentNudgeCardContent = (
+    <View
+      style={[styles.paymentNudgeCard, { height: PAYMENT_NUDGE_CARD_HEIGHT, width: cardWidth }]}
+    >
+            <View style={styles.paymentNudgeHero}>
+              <View style={styles.paymentNudgeHeroPager}>
+                <Animated.View
+                  style={[
+                    styles.paymentNudgeHeroTrack,
+                    {
+                      width: cardWidth * paymentNudgeSlides.length,
+                      transform: [{ translateX: heroTranslateX }],
+                    },
+                  ]}
+                >
+                  {paymentNudgeSlides.map((hero, index) => (
+                    <View
+                      key={`payment-nudge-hero-${index}`}
+                      style={[styles.paymentNudgeHeroPage, { width: cardWidth }]}
+                    >
+                      <Image
+                        cachePolicy="memory-disk"
+                        contentFit="cover"
+                        source={hero.source}
+                        style={styles.paymentNudgeHeroImage}
+                      />
+                    </View>
+                  ))}
+                </Animated.View>
+              </View>
+              <View style={styles.paymentNudgeHeroFooter}>
+                <Svg
+                  height="40"
+                  preserveAspectRatio="none"
+                  style={styles.paymentNudgeHeroGradientSvg}
+                  width="100%"
+                >
+                  <Defs>
+                    <SvgLinearGradient
+                      id="payment-nudge-image-overlay"
+                      x1="0%"
+                      x2="0%"
+                      y1="0%"
+                      y2="100%"
+                    >
+                      <Stop offset="0%" stopColor="#000000" stopOpacity="0" />
+                      <Stop offset="100%" stopColor="#000000" stopOpacity="0.4" />
+                    </SvgLinearGradient>
+                  </Defs>
+                  <Rect
+                    fill="url(#payment-nudge-image-overlay)"
+                    height="40"
+                    width="100%"
+                    x="0"
+                    y="0"
+                  />
+                </Svg>
+                <View style={styles.paymentNudgePagerWrap}>
+                  {PAYMENT_NUDGE_HEROES.map((hero, index) => {
+                    const indicatorWidth = indicatorValuesRef.current[index].interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [6, 24],
+                    });
+                    const indicatorOpacity = indicatorValuesRef.current[index].interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.4, 1],
+                    });
+
+                    return (
+                      <Animated.View
+                        key={`payment-nudge-pager-${hero.dominantHex}-${index}`}
+                        style={[
+                          styles.paymentNudgePagerIndicator,
+                          {
+                            opacity: indicatorOpacity,
+                            width: indicatorWidth,
+                          },
+                        ]}
+                      />
+                    );
+                  })}
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.paymentNudgeTemplate}>
+              <View style={styles.paymentNudgeHeader}>
+                <Image
+                  cachePolicy="memory-disk"
+                  contentFit="cover"
+                  source={PAYMENT_NUDGE_ASSETS.avatar}
+                  style={styles.paymentNudgeAvatar}
+                />
+                <View style={styles.paymentNudgeNameRow}>
+                  <Text
+                    style={[
+                      styles.paymentNudgeName,
+                      {
+                        fontFamily: getGoogleSansFontFamily(
+                          !!fontsLoaded,
+                          fontsError,
+                          'semibold',
+                        ),
+                      },
+                    ]}
+                  >
+                    Srinivasalu Reddy
+                  </Text>
+                  <PaymentNudgeVerified height={16} width={16} />
+                </View>
+              </View>
+
+              <View style={styles.paymentNudgeProgressBar}>
+                <View
+                  style={[
+                    styles.paymentNudgeProgressSegment,
+                    { backgroundColor: '#FDB100' },
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.paymentNudgeProgressSegment,
+                    { backgroundColor: '#FD5C05' },
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.paymentNudgeProgressSegment,
+                    { backgroundColor: '#CB005B' },
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.paymentNudgeProgressSegment,
+                    { backgroundColor: '#6500AA' },
+                  ]}
+                />
+              </View>
+
+              <View style={styles.paymentNudgeBody}>
+                <Text style={styles.paymentNudgeDescription}>
+                  <Text
+                    style={[
+                      styles.paymentNudgeDescriptionMuted,
+                      {
+                        fontFamily: getGoogleSansFontFamily(
+                          !!fontsLoaded,
+                          fontsError,
+                          'regular',
+                        ),
+                      },
+                    ]}
+                  >
+                    Share personalised posters with your friends and family
+                  </Text>
+                  <Text
+                    style={[
+                      styles.paymentNudgeDescriptionPrimary,
+                      {
+                        fontFamily: getGoogleSansFontFamily(
+                          !!fontsLoaded,
+                          fontsError,
+                          'regular',
+                        ),
+                      },
+                    ]}
+                  >
+                    {' '}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.paymentNudgeDescriptionEmphasis,
+                      {
+                        fontFamily: getGoogleSansFontFamily(
+                          !!fontsLoaded,
+                          fontsError,
+                          'medium',
+                        ),
+                      },
+                    ]}
+                  >
+                    — try free for 3 days
+                  </Text>
+                </Text>
+
+                <View style={styles.paymentNudgeCtaStack}>
+                  <View
+                    style={[
+                      styles.paymentNudgeCtaShell,
+                      { width: ctaWidth },
+                    ]}
+                  >
+                    <Svg
+                      height={PAYMENT_NUDGE_CTA_HEIGHT}
+                      style={styles.paymentNudgeCtaShape}
+                      width={ctaWidth}
+                    >
+                      <Path d={paymentNudgeCtaPath} fill="#0E8345" />
+                    </Svg>
+                    <Pressable style={styles.paymentNudgeCta}>
+                      <View style={styles.paymentNudgeCtaTitleRow}>
+                        <Text
+                          style={[
+                            styles.paymentNudgeCtaTitle,
+                            {
+                              fontFamily: getGoogleSansFontFamily(
+                                !!fontsLoaded,
+                                fontsError,
+                                'semibold',
+                              ),
+                            },
+                          ]}
+                        >
+                          Start Free Trial
+                        </Text>
+                        <PaymentNudgeArrowRight height={16} width={16} />
+                      </View>
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+            </View>
+    </View>
+  );
+
+  return (
+    <View style={styles.paymentNudgeScene}>
+      <Animated.View
+        style={[
+          styles.posterContent,
+          styles.paymentNudgeSceneContent,
+          {
+            paddingBottom: posterBottomInset,
+          },
+        ]}
+      >
+        <MaskedView
+          maskElement={
+            <Svg
+              height={PAYMENT_NUDGE_CARD_HEIGHT}
+              style={styles.paymentNudgeCardMaskShape}
+              width={cardWidth}
+            >
+              <Path d={paymentNudgeCardMaskPath} fill="#000000" />
+            </Svg>
+          }
+          style={[
+            styles.paymentNudgeCardMask,
+            { height: PAYMENT_NUDGE_CARD_HEIGHT, width: cardWidth },
+          ]}
+        >
+          {paymentNudgeCardContent}
+        </MaskedView>
+      </Animated.View>
+    </View>
+  );
+});
+
 const PosterCard = memo(function PosterCard({
+  activePaymentNudgeHeroIndex,
+  fontsError,
+  fontsLoaded,
   isActive,
   item,
+  onPaymentNudgeHeroIndexChange,
   posterAreaHeight,
   posterBottomInset,
   width,
 }: {
+  activePaymentNudgeHeroIndex: number;
+  fontsError?: Error | null;
+  fontsLoaded?: boolean;
   isActive: boolean;
   item: FeedItem;
+  onPaymentNudgeHeroIndexChange: (index: number) => void;
   posterAreaHeight: number;
   posterBottomInset: Animated.AnimatedInterpolation<string | number> | number;
   width: number;
 }) {
+  if (item.mediaType === 'payment-nudge') {
+    return (
+      <View style={[styles.posterFrame, { height: posterAreaHeight, width }]}>
+        <PaymentNudgeCard
+          activeHeroIndex={activePaymentNudgeHeroIndex}
+          fontsError={fontsError}
+          fontsLoaded={fontsLoaded}
+          onHeroIndexChange={onPaymentNudgeHeroIndexChange}
+          posterBottomInset={0}
+          width={width}
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.posterFrame, { height: posterAreaHeight, width }]}>
       <Animated.View
@@ -1078,14 +1650,18 @@ function FeedScreen({
   const topFilters = isStatusVariant ? STATUS_TOP_FILTERS : LEGACY_TOP_FILTERS;
   const [fontsLoaded, fontsError] = useFonts(GOOGLE_SANS_FONT_MAP);
   const { height, width } = useWindowDimensions();
+  const isCompactFilterLayout = Platform.OS === 'android' && width <= 360;
   const insets = useSafeAreaInsets();
   const feedListRef = useRef<FlatList<FeedItem>>(null);
   const chromeVisibility = useRef(new Animated.Value(1)).current;
+  const paymentNudgeChromeVisibility = useRef(new Animated.Value(1)).current;
+  const paymentNudgeInsetVisibility = useRef(new Animated.Value(1)).current;
   const activeFeedIndexRef = useRef(0);
   const isChromeVisibleRef = useRef(true);
   const lastScrollOffsetRef = useRef(0);
   const [filterWrapHeight, setFilterWrapHeight] = useState(0);
   const [activeFeedIndex, setActiveFeedIndex] = useState(0);
+  const [activePaymentNudgeHeroIndex, setActivePaymentNudgeHeroIndex] = useState(0);
   const resolvedHeaderHeight =
     insets.top +
     8 +
@@ -1102,24 +1678,52 @@ function FeedScreen({
       : ACTION_BAR_HEIGHT;
   const posterAreaHeight = height - resolvedHeaderHeight;
   const activeFeedItem = feedItems[activeFeedIndex] ?? feedItems[0];
+  const isPaymentNudgeActive = activeFeedItem.mediaType === 'payment-nudge';
+  const activePaymentNudgeHero =
+    PAYMENT_NUDGE_HEROES[activePaymentNudgeHeroIndex] ?? PAYMENT_NUDGE_HEROES[0];
+  const activeBackdropHex = isPaymentNudgeActive
+    ? activePaymentNudgeHero.dominantHex
+    : activeFeedItem.palette.dominantHex;
+  const activeBackdropPalette = useMemo(
+    () =>
+      isPaymentNudgeActive
+        ? getAuraPalette(activePaymentNudgeHero.dominantHex)
+        : activeFeedItem.palette.auraPalette,
+    [activeFeedItem.palette.auraPalette, activePaymentNudgeHero.dominantHex, isPaymentNudgeActive],
+  );
+  const [displayedBackdrop, setDisplayedBackdrop] = useState<BackdropState>(() => ({
+    auraPalette: activeBackdropPalette,
+    dominantHex: activeBackdropHex,
+  }));
+  const [incomingBackdrop, setIncomingBackdrop] = useState<BackdropState | null>(null);
+  const displayedBackdropRef = useRef(displayedBackdrop);
+  const incomingBackdropRef = useRef<BackdropState | null>(null);
+  const backdropTransition = useRef(new Animated.Value(1)).current;
   const auraParams = DEFAULT_AURA_PARAMS;
   const posterBottomInset = useMemo(
     () =>
       isStatusVariant
-        ? resolvedActionBarHeight
+        ? paymentNudgeInsetVisibility.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, resolvedActionBarHeight],
+          })
         : isHybridVariant
-          ? resolvedDockHeight + resolvedBottomNavHeight
+          ? paymentNudgeInsetVisibility.interpolate({
+              inputRange: [0, 1],
+              outputRange: [resolvedBottomNavHeight, resolvedDockHeight + resolvedBottomNavHeight],
+            })
         : chromeVisibility.interpolate({
             inputRange: [0, 1],
             outputRange: [
-              resolvedActionBarHeight + resolvedBottomInset,
-              resolvedActionBarHeight + resolvedBottomNavHeight,
+              (isPaymentNudgeActive ? 0 : resolvedActionBarHeight) + resolvedBottomInset,
+              (isPaymentNudgeActive ? 0 : resolvedActionBarHeight) + resolvedBottomNavHeight,
             ],
           }),
     [
       chromeVisibility,
       isHybridVariant,
       isStatusVariant,
+      paymentNudgeInsetVisibility,
       resolvedActionBarHeight,
       resolvedDockHeight,
       resolvedBottomInset,
@@ -1157,6 +1761,30 @@ function FeedScreen({
         outputRange: [resolvedBottomInset, 0],
       }),
     [chromeVisibility, resolvedBottomInset],
+  );
+  const paymentNudgeBottomNavTranslateY = useMemo(
+    () =>
+      paymentNudgeChromeVisibility.interpolate({
+        inputRange: [0, 1],
+        outputRange: [resolvedBottomNavHeight, 0],
+      }),
+    [paymentNudgeChromeVisibility, resolvedBottomNavHeight],
+  );
+  const paymentNudgeDockTranslateY = useMemo(
+    () =>
+      paymentNudgeChromeVisibility.interpolate({
+        inputRange: [0, 1],
+        outputRange: [resolvedDockHeight + 12, 0],
+      }),
+    [paymentNudgeChromeVisibility, resolvedDockHeight],
+  );
+  const paymentNudgeChromeOpacity = useMemo(
+    () =>
+      paymentNudgeChromeVisibility.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 1],
+      }),
+    [paymentNudgeChromeVisibility],
   );
 
   useEffect(() => {
@@ -1202,9 +1830,103 @@ function FeedScreen({
     activeFeedIndexRef.current = 0;
     lastScrollOffsetRef.current = 0;
     setActiveFeedIndex(0);
+    setActivePaymentNudgeHeroIndex(0);
     chromeVisibility.setValue(1);
+    paymentNudgeChromeVisibility.setValue(1);
+    paymentNudgeInsetVisibility.setValue(1);
     isChromeVisibleRef.current = true;
-  }, [chromeVisibility, variant]);
+  }, [chromeVisibility, paymentNudgeChromeVisibility, paymentNudgeInsetVisibility, variant]);
+
+  useEffect(() => {
+    displayedBackdropRef.current = displayedBackdrop;
+  }, [displayedBackdrop]);
+
+  useEffect(() => {
+    incomingBackdropRef.current = incomingBackdrop;
+  }, [incomingBackdrop]);
+
+  useEffect(() => {
+    if (!isPaymentNudgeActive) {
+      const stableBackdrop: BackdropState = {
+        auraPalette: activeBackdropPalette,
+        dominantHex: activeBackdropHex,
+      };
+
+      displayedBackdropRef.current = stableBackdrop;
+      incomingBackdropRef.current = null;
+      setDisplayedBackdrop(stableBackdrop);
+      setIncomingBackdrop(null);
+      backdropTransition.stopAnimation();
+      backdropTransition.setValue(1);
+      return;
+    }
+
+    const nextBackdrop: BackdropState = {
+      auraPalette: activeBackdropPalette,
+      dominantHex: activeBackdropHex,
+    };
+
+    if (incomingBackdropRef.current?.dominantHex === nextBackdrop.dominantHex) {
+      return;
+    }
+
+    if (
+      incomingBackdropRef.current === null &&
+      displayedBackdropRef.current.dominantHex === nextBackdrop.dominantHex
+    ) {
+      return;
+    }
+
+    setIncomingBackdrop(nextBackdrop);
+    backdropTransition.stopAnimation();
+    backdropTransition.setValue(0);
+
+    Animated.timing(backdropTransition, {
+      duration: PAYMENT_NUDGE_HERO_TRANSITION_DURATION,
+      easing: Easing.bezier(0.22, 0.8, 0.22, 1),
+      toValue: 1,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (!finished) {
+        return;
+      }
+
+      displayedBackdropRef.current = nextBackdrop;
+      incomingBackdropRef.current = null;
+      setDisplayedBackdrop(nextBackdrop);
+      setIncomingBackdrop(null);
+      backdropTransition.setValue(1);
+    });
+  }, [
+    activeBackdropHex,
+    activeBackdropPalette,
+    backdropTransition,
+    isPaymentNudgeActive,
+  ]);
+
+  useEffect(() => {
+    if (isPaymentNudgeActive) {
+      setActivePaymentNudgeHeroIndex(0);
+    }
+  }, [activeFeedIndex, isPaymentNudgeActive]);
+
+  useEffect(() => {
+    Animated.timing(paymentNudgeChromeVisibility, {
+      duration: CHROME_ANIMATION_DURATION,
+      easing: Easing.bezier(0.2, 0.8, 0.2, 1),
+      toValue: isPaymentNudgeActive ? 0 : 1,
+      useNativeDriver: true,
+    }).start();
+  }, [isPaymentNudgeActive, paymentNudgeChromeVisibility]);
+
+  useEffect(() => {
+    Animated.timing(paymentNudgeInsetVisibility, {
+      duration: CHROME_ANIMATION_DURATION,
+      easing: Easing.bezier(0.2, 0.8, 0.2, 1),
+      toValue: isPaymentNudgeActive ? 0 : 1,
+      useNativeDriver: false,
+    }).start();
+  }, [isPaymentNudgeActive, paymentNudgeInsetVisibility]);
 
   const commitActiveFeedIndex = (offsetY: number) => {
     const nextIndex = Math.round(offsetY / posterAreaHeight);
@@ -1315,14 +2037,25 @@ function FeedScreen({
   const renderPosterItem = useCallback(
     ({ index, item }: { index: number; item: FeedItem }) => (
       <PosterCard
+        activePaymentNudgeHeroIndex={activePaymentNudgeHeroIndex}
+        fontsError={fontsError}
+        fontsLoaded={fontsLoaded}
         isActive={normalizeFeedIndex(index, feedItems.length) === activeFeedIndex}
         item={item}
+        onPaymentNudgeHeroIndexChange={setActivePaymentNudgeHeroIndex}
         posterAreaHeight={posterAreaHeight}
         posterBottomInset={posterBottomInset}
         width={width}
       />
     ),
-    [activeFeedIndex, feedItems.length, posterAreaHeight, posterBottomInset, width],
+    [
+      activePaymentNudgeHeroIndex,
+      activeFeedIndex,
+      feedItems.length,
+      posterAreaHeight,
+      posterBottomInset,
+      width,
+    ],
   );
 
   const renderActionItem = useCallback(
@@ -1342,13 +2075,35 @@ function FeedScreen({
       <StatusBar hidden={false} style="light" />
 
       <View style={styles.screenContent}>
-        <PosterStageBackdrop
-          auraParams={auraParams}
-          auraPalette={activeFeedItem.palette.auraPalette}
-          dominantHex={activeFeedItem.palette.dominantHex}
-          height={resolvedHeaderHeight + posterAreaHeight}
-          width={width}
-        />
+        <View pointerEvents="none" style={styles.posterStageBackdropContainer}>
+          <View style={styles.posterStageBackdropLayer}>
+            <PosterStageBackdrop
+              auraParams={auraParams}
+              auraPalette={displayedBackdrop.auraPalette}
+              dominantHex={displayedBackdrop.dominantHex}
+              height={resolvedHeaderHeight + posterAreaHeight}
+              width={width}
+            />
+          </View>
+          {incomingBackdrop ? (
+            <Animated.View
+              style={[
+                styles.posterStageBackdropLayer,
+                {
+                  opacity: backdropTransition,
+                },
+              ]}
+            >
+              <PosterStageBackdrop
+                auraParams={auraParams}
+                auraPalette={incomingBackdrop.auraPalette}
+                dominantHex={incomingBackdrop.dominantHex}
+                height={resolvedHeaderHeight + posterAreaHeight}
+                width={width}
+              />
+            </Animated.View>
+          ) : null}
+        </View>
         <View
           style={[
             styles.header,
@@ -1366,22 +2121,25 @@ function FeedScreen({
               <Pressable onPress={onOpenProfile} style={styles.topBarProfileButton}>
                 <Image
                   contentFit="cover"
-                  source={STATUS_ASSETS.profileButton}
+                  source={PAYMENT_NUDGE_ASSETS.avatar}
                   style={styles.topBarProfileImage}
                 />
               </Pressable>
             </View>
           ) : null}
-          <View onLayout={handleFilterWrapLayout} style={styles.filterWrap}>
-            {topFilters.map((filter) => (
-              <FilterChip
-                key={filter.label}
-                {...filter}
-                fontsError={fontsError}
-                fontsLoaded={fontsLoaded}
-                variant={variant}
-              />
-            ))}
+          <View onLayout={handleFilterWrapLayout} style={styles.filterWrapTapTarget}>
+            <View style={styles.filterWrap}>
+              {topFilters.map((filter) => (
+                <FilterChip
+                  key={filter.label}
+                  {...filter}
+                  compact={isCompactFilterLayout}
+                  fontsError={fontsError}
+                  fontsLoaded={fontsLoaded}
+                  variant={variant}
+                />
+              ))}
+            </View>
           </View>
         </View>
 
@@ -1422,11 +2180,16 @@ function FeedScreen({
       </View>
 
       {isStatusVariant ? (
-        <View
+        <Animated.View
+          pointerEvents={isPaymentNudgeActive ? 'none' : 'auto'}
+          renderToHardwareTextureAndroid
+          shouldRasterizeIOS
           style={[
             styles.actionBarContainer,
             {
+              opacity: paymentNudgeChromeOpacity,
               paddingBottom: resolvedBottomInset,
+              transform: [{ translateY: paymentNudgeDockTranslateY }],
             },
           ]}
         >
@@ -1457,47 +2220,63 @@ function FeedScreen({
               <LocalIcon source={STATUS_ASSETS.more} style={styles.actionMoreGlyph} />
             </Pressable>
           </View>
-        </View>
+        </Animated.View>
       ) : isHybridVariant ? (
         <>
-          <View
+          <Animated.View
+            pointerEvents={isPaymentNudgeActive ? 'none' : 'auto'}
+            renderToHardwareTextureAndroid
+            shouldRasterizeIOS
             style={[
               styles.hybridDockContainer,
               {
                 bottom: resolvedBottomNavHeight,
+                opacity: paymentNudgeChromeOpacity,
+                transform: [{ translateY: paymentNudgeDockTranslateY }],
               },
             ]}
           >
-            <View style={styles.actionBar}>
-              <Pressable style={styles.shareButton}>
-                <View style={styles.shareButtonIconWrap}>
-                  <LocalIcon source={STATUS_ASSETS.whatsappGlyph} style={styles.shareButtonIcon} />
-                </View>
-                <Text
-                  style={[
-                    styles.shareButtonLabel,
-                    {
-                      fontFamily: getGoogleSansFontFamily(
-                        !!fontsLoaded,
-                        fontsError,
-                        'medium',
-                      ),
-                    },
-                  ]}
-                >
-                  Share
-                </Text>
-              </Pressable>
-              <Pressable style={styles.actionIconButton}>
-                <LocalIcon source={STATUS_ASSETS.edit} style={styles.actionEditGlyph} />
-              </Pressable>
-              <Pressable onPress={onOpenFeedVariantMenu} style={styles.actionIconButton}>
-                <LocalIcon source={STATUS_ASSETS.more} style={styles.actionMoreGlyph} />
-              </Pressable>
-            </View>
-          </View>
+              <View style={styles.actionBar}>
+                <Pressable style={styles.shareButton}>
+                  <View style={styles.shareButtonIconWrap}>
+                    <LocalIcon source={STATUS_ASSETS.whatsappGlyph} style={styles.shareButtonIcon} />
+                  </View>
+                  <Text
+                    style={[
+                      styles.shareButtonLabel,
+                      {
+                        fontFamily: getGoogleSansFontFamily(
+                          !!fontsLoaded,
+                          fontsError,
+                          'medium',
+                        ),
+                      },
+                    ]}
+                  >
+                    Share
+                  </Text>
+                </Pressable>
+                <Pressable style={styles.actionIconButton}>
+                  <LocalIcon source={STATUS_ASSETS.edit} style={styles.actionEditGlyph} />
+                </Pressable>
+                <Pressable onPress={onOpenFeedVariantMenu} style={styles.actionIconButton}>
+                  <LocalIcon source={STATUS_ASSETS.more} style={styles.actionMoreGlyph} />
+                </Pressable>
+              </View>
+            </Animated.View>
 
-          <View style={styles.bottomNavContainer}>
+          <Animated.View
+            pointerEvents={isPaymentNudgeActive ? 'none' : 'auto'}
+            renderToHardwareTextureAndroid
+            shouldRasterizeIOS
+            style={[
+              styles.bottomNavContainer,
+              {
+                opacity: paymentNudgeChromeOpacity,
+                transform: [{ translateY: paymentNudgeBottomNavTranslateY }],
+              },
+            ]}
+          >
             <View style={[styles.bottomNavShell, { paddingBottom: resolvedBottomInset }]}>
               <View style={styles.bottomNav}>
                 {HYBRID_NAV_ITEMS.map((item) => (
@@ -1509,7 +2288,7 @@ function FeedScreen({
                 ))}
               </View>
             </View>
-          </View>
+          </Animated.View>
         </>
       ) : (
         <>
@@ -1537,34 +2316,36 @@ function FeedScreen({
             </View>
           </Animated.View>
 
-          <Animated.View
-            renderToHardwareTextureAndroid
-            shouldRasterizeIOS
-            style={[
-              styles.actionBarContainer,
-              {
-                paddingBottom: actionBarBottomPadding,
-                transform: [{ translateY: actionBarBottomOffset }],
-              },
-            ]}
-          >
-            <FlatList
-              automaticallyAdjustContentInsets={false}
-              contentContainerStyle={styles.actionBarContent}
-              contentInsetAdjustmentBehavior="never"
-              data={LEGACY_ACTIONS}
-              horizontal
-              ItemSeparatorComponent={ActionBarSpacer}
-              keyExtractor={(item) => item.label}
-              renderItem={renderActionItem}
-              showsHorizontalScrollIndicator={false}
-              style={styles.legacyActionBar}
-            />
+          {!isPaymentNudgeActive ? (
             <Animated.View
-              pointerEvents="none"
-              style={[styles.bottomNavSeparator, { opacity: chromeVisibility }]}
-            />
-          </Animated.View>
+              renderToHardwareTextureAndroid
+              shouldRasterizeIOS
+              style={[
+                styles.actionBarContainer,
+                {
+                  paddingBottom: actionBarBottomPadding,
+                  transform: [{ translateY: actionBarBottomOffset }],
+                },
+              ]}
+            >
+              <FlatList
+                automaticallyAdjustContentInsets={false}
+                contentContainerStyle={styles.actionBarContent}
+                contentInsetAdjustmentBehavior="never"
+                data={LEGACY_ACTIONS}
+                horizontal
+                ItemSeparatorComponent={ActionBarSpacer}
+                keyExtractor={(item) => item.label}
+                renderItem={renderActionItem}
+                showsHorizontalScrollIndicator={false}
+                style={styles.legacyActionBar}
+              />
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.bottomNavSeparator, { opacity: chromeVisibility }]}
+              />
+            </Animated.View>
+          ) : null}
         </>
       )}
     </View>
@@ -1769,6 +2550,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 12,
   },
+  filterChipCompact: {
+    gap: 3,
+    paddingHorizontal: 10,
+  },
   filterChipActive: {
     backgroundColor: 'rgba(255,255,255,0.18)',
     borderColor: 'rgba(255,255,255,0.12)',
@@ -1792,6 +2577,10 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textAlign: 'center',
   },
+  filterChipTextCompact: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
   filterChipTextActive: {
     color: '#FFFFFF',
     fontWeight: '600',
@@ -1807,6 +2596,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     rowGap: 8,
+  },
+  filterWrapTapTarget: {
+    width: '100%',
   },
   header: {
     overflow: 'hidden',
@@ -1825,6 +2617,164 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
     height: ACTION_BAR_HEIGHT,
   },
+  paymentNudgeAvatar: {
+    borderRadius: 28,
+    height: 56,
+    width: 56,
+  },
+  paymentNudgeBody: {
+    gap: 14,
+    alignItems: 'center',
+    width: '100%',
+  },
+  paymentNudgeCardMask: {
+    width: '100%',
+  },
+  paymentNudgeCardMaskShape: {
+    backgroundColor: 'transparent',
+  },
+  paymentNudgeCard: {
+    backgroundColor: '#FFFFFF',
+    height: '100%',
+    width: '100%',
+  },
+  paymentNudgeCtaShell: {
+    alignItems: 'center',
+    height: PAYMENT_NUDGE_CTA_HEIGHT,
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  paymentNudgeCtaShape: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  paymentNudgeCta: {
+    alignItems: 'center',
+    ...StyleSheet.absoluteFillObject,
+    height: '100%',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  paymentNudgeCtaStack: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  paymentNudgeCtaTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 24,
+  },
+  paymentNudgeCtaTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 4,
+  },
+  paymentNudgeDescription: {
+    color: '#171717',
+    fontSize: 14,
+    lineHeight: 20,
+    width: '100%',
+  },
+  paymentNudgeDescriptionEmphasis: {
+    color: '#171717',
+    fontWeight: '500',
+  },
+  paymentNudgeDescriptionMuted: {
+    color: 'rgba(23,23,23,0.65)',
+    fontWeight: '400',
+  },
+  paymentNudgeDescriptionPrimary: {
+    color: '#171717',
+    fontWeight: '400',
+  },
+  paymentNudgeHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  paymentNudgeHero: {
+    height: 219,
+    position: 'relative',
+    width: '100%',
+  },
+  paymentNudgeHeroPage: {
+    flex: 1,
+  },
+  paymentNudgeHeroPager: {
+    flex: 1,
+    position: 'relative',
+  },
+  paymentNudgeHeroTrack: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  paymentNudgeHeroFooter: {
+    bottom: 0,
+    height: 40,
+    left: 0,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+    position: 'absolute',
+    right: 0,
+  },
+  paymentNudgeHeroGradientSvg: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  paymentNudgeHeroImage: {
+    height: '100%',
+    width: '100%',
+  },
+  paymentNudgeName: {
+    color: '#171717',
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  paymentNudgeNameRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 4,
+  },
+  paymentNudgePagerIndicator: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 3,
+    height: 6,
+  },
+  paymentNudgePagerWrap: {
+    alignItems: 'center',
+    bottom: 8,
+    flexDirection: 'row',
+    gap: 4,
+    justifyContent: 'center',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+  },
+  paymentNudgeProgressBar: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    height: 3,
+    marginHorizontal: -12,
+  },
+  paymentNudgeProgressSegment: {
+    flex: 1,
+  },
+  paymentNudgeScene: {
+    flex: 1,
+    width: '100%',
+  },
+  paymentNudgeSceneContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ translateY: -40 }],
+  },
+  paymentNudgeTemplate: {
+    backgroundColor: '#FFFFFF',
+    gap: 12,
+    padding: 12,
+    width: '100%',
+  },
   posterArea: {
     overflow: 'hidden',
   },
@@ -1835,6 +2785,12 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   posterStageBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  posterStageBackdropContainer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  posterStageBackdropLayer: {
     ...StyleSheet.absoluteFillObject,
   },
   posterStageBackdropSvg: {

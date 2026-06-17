@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="2340" viewBox="0 0 1080 2340">
+  <defs>
+    <linearGradient id="base" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#141414" />
+      <stop offset="38%" stop-color="#232323" />
+      <stop offset="72%" stop-color="#1B1B1C" />
+      <stop offset="100%" stop-color="#101010" />
+    </linearGradient>
+    <radialGradient id="center-haze" gradientUnits="userSpaceOnUse" cx="561.6" cy="982.8" r="1170">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.09)" />
+      <stop offset="46%" stop-color="rgba(228,228,228,0.045)" />
+      <stop offset="100%" stop-color="rgba(228,228,228,0)" />
+    </radialGradient>
+    <radialGradient id="top-left-mist" gradientUnits="userSpaceOnUse" cx="194.4" cy="187.20000000000002" r="702">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.06)" />
+      <stop offset="60%" stop-color="rgba(255,255,255,0.018)" />
+      <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+    </radialGradient>
+    <radialGradient id="bottom-lift" gradientUnits="userSpaceOnUse" cx="518.4" cy="2106" r="972">
+      <stop offset="0%" stop-color="rgba(72,72,76,0.58)" />
+      <stop offset="58%" stop-color="rgba(54,54,58,0.16)" />
+      <stop offset="100%" stop-color="rgba(54,54,58,0)" />
+    </radialGradient>
+    <radialGradient id="side-shadow" gradientUnits="userSpaceOnUse" cx="1101.6" cy="1170" r="1216.8">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.035)" />
+      <stop offset="55%" stop-color="rgba(255,255,255,0.012)" />
+      <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+    </radialGradient>
+    <radialGradient id="subtle-warmth" gradientUnits="userSpaceOnUse" cx="302.40000000000003" cy="2059.2" r="453.59999999999997">
+      <stop offset="0%" stop-color="rgba(110,38,52,0.14)" />
+      <stop offset="48%" stop-color="rgba(92,32,44,0.06)" />
+      <stop offset="100%" stop-color="rgba(92,32,44,0)" />
+    </radialGradient>
+    <radialGradient id="subtle-violet" gradientUnits="userSpaceOnUse" cx="216" cy="2269.7999999999997" r="367.20000000000005">
+      <stop offset="0%" stop-color="rgba(88,44,132,0.12)" />
+      <stop offset="45%" stop-color="rgba(88,44,132,0.045)" />
+      <stop offset="100%" stop-color="rgba(88,44,132,0)" />
+    </radialGradient>
+    <radialGradient id="vignette" gradientUnits="userSpaceOnUse" cx="540" cy="1123.2" r="1965.6">
+      <stop offset="42%" stop-color="rgba(0,0,0,0)" />
+      <stop offset="100%" stop-color="rgba(0,0,0,0.42)" />
+    </radialGradient>
+    <filter id="grain-soften">
+      <feGaussianBlur stdDeviation="0.2" />
+    </filter>
+  </defs>
+  <rect x="0" y="0" width="1080" height="2340" fill="#141414" />
+  <rect x="0" y="0" width="1080" height="2340" fill="url(#base)" />
+  <rect x="0" y="0" width="1080" height="2340" fill="url(#center-haze)" />
+  <rect x="0" y="0" width="1080" height="2340" fill="url(#top-left-mist)" />
+  <rect x="0" y="0" width="1080" height="2340" fill="url(#bottom-lift)" />
+  <rect x="0" y="0" width="1080" height="2340" fill="url(#side-shadow)" />
+  <rect x="0" y="0" width="1080" height="2340" fill="url(#subtle-warmth)" />
+  <rect x="0" y="0" width="1080" height="2340" fill="url(#subtle-violet)" />
+  <g filter="url(#grain-soften)">
+    <circle cx="470" cy="1103" r="3.377818151284009" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="962" cy="1717" r="1.2370344893075527" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="508" cy="638" r="3.317892886418849" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="956" cy="1619" r="3.27376543963328" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="141" cy="339" r="1.2996853177435697" fill="rgba(110, 78, 84, 0.028)" />
+    <circle cx="658" cy="2188" r="2.9006817222572865" fill="rgba(110, 78, 84, 0.028)" />
+    <circle cx="379" cy="1853" r="3.3565992233343422" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="159" cy="1396" r="3.0771514707244934" fill="rgba(110, 78, 84, 0.028)" />
+    <circle cx="735" cy="1330" r="1.740959279704839" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="1063" cy="419" r="1.0123230920173227" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="866" cy="726" r="1.5294798118062318" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="734" cy="979" r="2.9580940165556964" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="940" cy="1701" r="2.603733543027192" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="397" cy="1651" r="2.777079448197037" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="720" cy="835" r="1.4056203451938927" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="64" cy="173" r="2.6855811142362653" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="602" cy="197" r="1.2678359885700048" fill="rgba(110, 78, 84, 0.028)" />
+    <circle cx="824" cy="1749" r="3.3715560154058037" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="293" cy="514" r="3.3193408918567" fill="rgba(110, 78, 84, 0.028)" />
+    <circle cx="454" cy="592" r="2.687585175875574" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="526" cy="335" r="3.165828872192651" fill="rgba(110, 78, 84, 0.028)" />
+    <circle cx="693" cy="218" r="2.9188423932529988" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="254" cy="1189" r="1.745195895154029" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="292" cy="2301" r="1.4260629885829985" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="116" cy="23" r="2.3580088247545063" fill="rgba(110, 78, 84, 0.028)" />
+    <circle cx="810" cy="1521" r="1.063512556347996" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="307" cy="1673" r="2.272974173445254" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="327" cy="450" r="1.171955714467913" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="406" cy="2234" r="1.3074068521149456" fill="rgba(110, 78, 84, 0.028)" />
+    <circle cx="1002" cy="13" r="2.746624854300171" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="70" cy="1825" r="2.1826989200897513" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="221" cy="627" r="2.5801888906396924" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="623" cy="2286" r="2.654788335133344" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="990" cy="2317" r="1.580722011718899" fill="rgba(110, 78, 84, 0.028)" />
+    <circle cx="1028" cy="1522" r="1.8196277034468948" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="515" cy="1461" r="2.0646724292077123" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="143" cy="853" r="3.793653029669076" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="191" cy="562" r="2.4248311282135546" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="935" cy="1982" r="1.9692524668760596" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="259" cy="611" r="3.173300617281347" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="448" cy="605" r="2.6452350665815176" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="748" cy="1780" r="1.9594636783935129" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="90" cy="51" r="1.2322995287366212" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="51" cy="766" r="2.7629521169699727" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="602" cy="503" r="3.4335029517300426" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="857" cy="1138" r="2.861615511868149" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="56" cy="1229" r="1.799729582387954" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="760" cy="1604" r="2.3744899653829634" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="294" cy="1796" r="2.860159565974027" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="1035" cy="1979" r="2.779766853246838" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="212" cy="2258" r="1.2277376961894333" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="76" cy="1102" r="2.8077615746296942" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="708" cy="2317" r="1.479642165172845" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="685" cy="755" r="2.908882302138954" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="798" cy="1804" r="1.012753313500434" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="951" cy="1536" r="1.4965987318195402" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="6" cy="136" r="1.0741223801858724" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="49" cy="46" r="2.565410833153874" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="549" cy="1769" r="1.1664402526803315" fill="rgba(110, 78, 84, 0.028)" />
+    <circle cx="598" cy="1438" r="1.0838175990618766" fill="rgba(110, 78, 84, 0.028)" />
+    <circle cx="683" cy="1903" r="2.0285062168724837" fill="rgba(110, 78, 84, 0.028)" />
+    <circle cx="10" cy="514" r="2.1622857959009707" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="809" cy="1592" r="3.1906967070885" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="6" cy="1588" r="1.196218713466078" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="726" cy="759" r="3.5054340560920534" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="802" cy="2219" r="3.3839249149896204" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="1016" cy="1901" r="1.8526552450843154" fill="rgba(110, 78, 84, 0.028)" />
+    <circle cx="498" cy="1657" r="1.4195869871415199" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="970" cy="1054" r="3.620280653703958" fill="rgba(110, 78, 84, 0.028)" />
+    <circle cx="737" cy="1257" r="3.761230290029198" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="652" cy="1150" r="2.159682810027152" fill="rgba(255, 255, 255, 0.018)" />
+    <circle cx="289" cy="1516" r="1.4736917071975768" fill="rgba(110, 78, 84, 0.028)" />
+  </g>
+  <rect x="0" y="0" width="1080" height="2340" fill="url(#vignette)" />
+</svg>
