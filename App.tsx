@@ -1169,6 +1169,7 @@ const PaymentNudgeCard = memo(function PaymentNudgeCard({
   fontsLoaded,
   onHeroIndexChange,
   posterBottomInset,
+  shouldAutoScroll,
   width,
 }: {
   activeHeroIndex: number;
@@ -1176,6 +1177,7 @@ const PaymentNudgeCard = memo(function PaymentNudgeCard({
   fontsLoaded?: boolean;
   onHeroIndexChange: (index: number) => void;
   posterBottomInset: Animated.AnimatedInterpolation<string | number> | number;
+  shouldAutoScroll: boolean;
   width: number;
 }) {
   const cardWidth = Math.max(width - 40, 0);
@@ -1228,6 +1230,10 @@ const PaymentNudgeCard = memo(function PaymentNudgeCard({
   const scheduleAutoScroll = useCallback(() => {
     clearAutoScroll();
 
+    if (!shouldAutoScroll) {
+      return;
+    }
+
     autoScrollTimerRef.current = setTimeout(() => {
       if (isAnimatingHeroRef.current) {
         return;
@@ -1236,7 +1242,7 @@ const PaymentNudgeCard = memo(function PaymentNudgeCard({
       const nextIndex = (activeHeroIndexRef.current + 1) % PAYMENT_NUDGE_HEROES.length;
       animateToHeroRef.current(nextIndex);
     }, PAYMENT_NUDGE_HERO_AUTO_SCROLL_INTERVAL_MS);
-  }, [clearAutoScroll]);
+  }, [clearAutoScroll, shouldAutoScroll]);
 
   const animateToHero = useCallback(
     (targetIndex: number) => {
@@ -1308,10 +1314,15 @@ const PaymentNudgeCard = memo(function PaymentNudgeCard({
   }, [cardWidth, heroTranslateX]);
 
   useEffect(() => {
+    if (!shouldAutoScroll) {
+      clearAutoScroll();
+      return;
+    }
+
     scheduleAutoScroll();
 
     return () => clearAutoScroll();
-  }, [clearAutoScroll, scheduleAutoScroll]);
+  }, [clearAutoScroll, scheduleAutoScroll, shouldAutoScroll]);
 
   const paymentNudgeCardContent = (
     <View
@@ -1578,8 +1589,10 @@ const PosterCard = memo(function PosterCard({
   isActive,
   item,
   onPaymentNudgeHeroIndexChange,
+  paymentNudgeBottomInset,
   posterAreaHeight,
   posterBottomInset,
+  shouldAutoScrollPaymentNudge,
   width,
 }: {
   activePaymentNudgeHeroIndex: number;
@@ -1588,8 +1601,10 @@ const PosterCard = memo(function PosterCard({
   isActive: boolean;
   item: FeedItem;
   onPaymentNudgeHeroIndexChange: (index: number) => void;
+  paymentNudgeBottomInset: Animated.AnimatedInterpolation<string | number> | number;
   posterAreaHeight: number;
   posterBottomInset: Animated.AnimatedInterpolation<string | number> | number;
+  shouldAutoScrollPaymentNudge: boolean;
   width: number;
 }) {
   if (item.mediaType === 'payment-nudge') {
@@ -1600,7 +1615,8 @@ const PosterCard = memo(function PosterCard({
           fontsError={fontsError}
           fontsLoaded={fontsLoaded}
           onHeroIndexChange={onPaymentNudgeHeroIndexChange}
-          posterBottomInset={0}
+          posterBottomInset={paymentNudgeBottomInset}
+          shouldAutoScroll={shouldAutoScrollPaymentNudge}
           width={width}
         />
       </View>
@@ -1653,6 +1669,7 @@ function FeedScreen({
   const isCompactFilterLayout = Platform.OS === 'android' && width <= 360;
   const insets = useSafeAreaInsets();
   const feedListRef = useRef<FlatList<FeedItem>>(null);
+  const feedScrollY = useRef(new Animated.Value(0)).current;
   const chromeVisibility = useRef(new Animated.Value(1)).current;
   const paymentNudgeChromeVisibility = useRef(new Animated.Value(1)).current;
   const paymentNudgeInsetVisibility = useRef(new Animated.Value(1)).current;
@@ -1662,6 +1679,7 @@ function FeedScreen({
   const [filterWrapHeight, setFilterWrapHeight] = useState(0);
   const [activeFeedIndex, setActiveFeedIndex] = useState(0);
   const [activePaymentNudgeHeroIndex, setActivePaymentNudgeHeroIndex] = useState(0);
+  const [isFeedSettled, setIsFeedSettled] = useState(true);
   const resolvedHeaderHeight =
     insets.top +
     8 +
@@ -1677,6 +1695,10 @@ function FeedScreen({
       ? resolvedDockHeight
       : ACTION_BAR_HEIGHT;
   const posterAreaHeight = height - resolvedHeaderHeight;
+  const paymentNudgeFeedIndex = useMemo(
+    () => feedItems.findIndex((item) => item.mediaType === 'payment-nudge'),
+    [feedItems],
+  );
   const activeFeedItem = feedItems[activeFeedIndex] ?? feedItems[0];
   const isPaymentNudgeActive = activeFeedItem.mediaType === 'payment-nudge';
   const activePaymentNudgeHero =
@@ -1700,13 +1722,75 @@ function FeedScreen({
   const incomingBackdropRef = useRef<BackdropState | null>(null);
   const backdropTransition = useRef(new Animated.Value(1)).current;
   const auraParams = DEFAULT_AURA_PARAMS;
+  const statusPaymentNudgeVisibility = useMemo(() => {
+    if (paymentNudgeFeedIndex < 0 || posterAreaHeight <= 0) {
+      return new Animated.Value(1);
+    }
+
+    const previousIndex = Math.max(paymentNudgeFeedIndex - 1, 0);
+    const nextIndex = Math.min(paymentNudgeFeedIndex + 1, feedItems.length - 1);
+
+    return feedScrollY.interpolate({
+      inputRange: [
+        previousIndex * posterAreaHeight,
+        paymentNudgeFeedIndex * posterAreaHeight,
+        nextIndex * posterAreaHeight,
+      ],
+      outputRange: [1, 0, 1],
+      extrapolate: 'clamp',
+    });
+  }, [feedItems.length, feedScrollY, paymentNudgeFeedIndex, posterAreaHeight]);
+  const legacyPaymentNudgeVisibility = useMemo(() => {
+    if (paymentNudgeFeedIndex < 0 || posterAreaHeight <= 0) {
+      return new Animated.Value(1);
+    }
+
+    const previousIndex = Math.max(paymentNudgeFeedIndex - 1, 0);
+    const nextIndex = Math.min(paymentNudgeFeedIndex + 1, feedItems.length - 1);
+
+    return feedScrollY.interpolate({
+      inputRange: [
+        previousIndex * posterAreaHeight,
+        paymentNudgeFeedIndex * posterAreaHeight,
+        nextIndex * posterAreaHeight,
+      ],
+      outputRange: [1, 0, 1],
+      extrapolate: 'clamp',
+    });
+  }, [feedItems.length, feedScrollY, paymentNudgeFeedIndex, posterAreaHeight]);
+  const legacyChromeVisibility = useMemo(
+    () => Animated.multiply(chromeVisibility, legacyPaymentNudgeVisibility),
+    [chromeVisibility, legacyPaymentNudgeVisibility],
+  );
+  const statusPaymentNudgeDockTranslateY = useMemo(
+    () =>
+      statusPaymentNudgeVisibility.interpolate({
+        inputRange: [0, 1],
+        outputRange: [resolvedDockHeight + 12, 0],
+      }),
+    [resolvedDockHeight, statusPaymentNudgeVisibility],
+  );
+  const statusPaymentNudgeDockOpacity = useMemo(
+    () =>
+      statusPaymentNudgeVisibility.interpolate({
+        inputRange: [0, 0.35, 1],
+        outputRange: [0, 1, 1],
+        extrapolate: 'clamp',
+      }),
+    [statusPaymentNudgeVisibility],
+  );
+  const statusPaymentNudgeInset = useMemo(
+    () =>
+      statusPaymentNudgeVisibility.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, resolvedActionBarHeight],
+      }),
+    [resolvedActionBarHeight, statusPaymentNudgeVisibility],
+  );
   const posterBottomInset = useMemo(
     () =>
       isStatusVariant
-        ? paymentNudgeInsetVisibility.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0, resolvedActionBarHeight],
-          })
+        ? resolvedActionBarHeight
         : isHybridVariant
           ? paymentNudgeInsetVisibility.interpolate({
               inputRange: [0, 1],
@@ -1732,35 +1816,35 @@ function FeedScreen({
   );
   const bottomChromeTranslateY = useMemo(
     () =>
-      chromeVisibility.interpolate({
+      legacyChromeVisibility.interpolate({
         inputRange: [0, 1],
         outputRange: [resolvedBottomNavHeight, 0],
       }),
-    [chromeVisibility, resolvedBottomNavHeight],
+    [legacyChromeVisibility, resolvedBottomNavHeight],
   );
   const bottomChromeOpacity = useMemo(
     () =>
-      chromeVisibility.interpolate({
+      legacyChromeVisibility.interpolate({
         inputRange: [0, 1],
         outputRange: [0.92, 1],
       }),
-    [chromeVisibility],
+    [legacyChromeVisibility],
   );
   const actionBarBottomOffset = useMemo(
     () =>
-      chromeVisibility.interpolate({
+      legacyChromeVisibility.interpolate({
         inputRange: [0, 1],
         outputRange: [0, -resolvedBottomNavHeight],
       }),
-    [chromeVisibility, resolvedBottomNavHeight],
+    [legacyChromeVisibility, resolvedBottomNavHeight],
   );
   const actionBarBottomPadding = useMemo(
     () =>
-      chromeVisibility.interpolate({
+      legacyChromeVisibility.interpolate({
         inputRange: [0, 1],
         outputRange: [resolvedBottomInset, 0],
       }),
-    [chromeVisibility, resolvedBottomInset],
+    [legacyChromeVisibility, resolvedBottomInset],
   );
   const paymentNudgeBottomNavTranslateY = useMemo(
     () =>
@@ -1829,13 +1913,20 @@ function FeedScreen({
     feedListRef.current?.scrollToOffset({ animated: false, offset: 0 });
     activeFeedIndexRef.current = 0;
     lastScrollOffsetRef.current = 0;
+    feedScrollY.setValue(0);
     setActiveFeedIndex(0);
     setActivePaymentNudgeHeroIndex(0);
     chromeVisibility.setValue(1);
     paymentNudgeChromeVisibility.setValue(1);
     paymentNudgeInsetVisibility.setValue(1);
     isChromeVisibleRef.current = true;
-  }, [chromeVisibility, paymentNudgeChromeVisibility, paymentNudgeInsetVisibility, variant]);
+  }, [
+    chromeVisibility,
+    feedScrollY,
+    paymentNudgeChromeVisibility,
+    paymentNudgeInsetVisibility,
+    variant,
+  ]);
 
   useEffect(() => {
     displayedBackdropRef.current = displayedBackdrop;
@@ -1976,6 +2067,8 @@ function FeedScreen({
     nativeEvent,
   }: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetY = nativeEvent.contentOffset.y;
+    setIsFeedSettled(false);
+    feedScrollY.setValue(offsetY);
     if (isLegacyVariant) {
       const deltaY = offsetY - lastScrollOffsetRef.current;
 
@@ -2002,6 +2095,7 @@ function FeedScreen({
     }
 
     commitActiveFeedIndex(nativeEvent.contentOffset.y);
+    setIsFeedSettled(true);
   };
 
   const handleFeedMomentumEnd = ({
@@ -2010,16 +2104,20 @@ function FeedScreen({
     const offsetY = nativeEvent.contentOffset.y;
     const nextIndex = Math.round(offsetY / posterAreaHeight);
 
+    feedScrollY.setValue(offsetY);
     commitActiveFeedIndex(offsetY);
+    setIsFeedSettled(true);
 
     if (nextIndex !== loopedFeedItems.length - 1) {
       return;
     }
 
     feedListRef.current?.scrollToOffset({ animated: false, offset: 0 });
+    feedScrollY.setValue(0);
     activeFeedIndexRef.current = 0;
     lastScrollOffsetRef.current = 0;
     setActiveFeedIndex(0);
+    setIsFeedSettled(true);
   };
 
   const handleFilterWrapLayout = ({
@@ -2043,8 +2141,14 @@ function FeedScreen({
         isActive={normalizeFeedIndex(index, feedItems.length) === activeFeedIndex}
         item={item}
         onPaymentNudgeHeroIndexChange={setActivePaymentNudgeHeroIndex}
+        paymentNudgeBottomInset={isStatusVariant ? statusPaymentNudgeInset : 0}
         posterAreaHeight={posterAreaHeight}
         posterBottomInset={posterBottomInset}
+        shouldAutoScrollPaymentNudge={
+          isFeedSettled &&
+          normalizeFeedIndex(index, feedItems.length) === activeFeedIndex &&
+          item.mediaType === 'payment-nudge'
+        }
         width={width}
       />
     ),
@@ -2052,8 +2156,11 @@ function FeedScreen({
       activePaymentNudgeHeroIndex,
       activeFeedIndex,
       feedItems.length,
+      isFeedSettled,
+      isStatusVariant,
       posterAreaHeight,
       posterBottomInset,
+      statusPaymentNudgeInset,
       width,
     ],
   );
@@ -2187,9 +2294,9 @@ function FeedScreen({
           style={[
             styles.actionBarContainer,
             {
-              opacity: paymentNudgeChromeOpacity,
+              opacity: statusPaymentNudgeDockOpacity,
               paddingBottom: resolvedBottomInset,
-              transform: [{ translateY: paymentNudgeDockTranslateY }],
+              transform: [{ translateY: statusPaymentNudgeDockTranslateY }],
             },
           ]}
         >
@@ -2236,46 +2343,39 @@ function FeedScreen({
               },
             ]}
           >
-              <View style={styles.actionBar}>
-                <Pressable style={styles.shareButton}>
-                  <View style={styles.shareButtonIconWrap}>
-                    <LocalIcon source={STATUS_ASSETS.whatsappGlyph} style={styles.shareButtonIcon} />
-                  </View>
-                  <Text
-                    style={[
-                      styles.shareButtonLabel,
-                      {
-                        fontFamily: getGoogleSansFontFamily(
-                          !!fontsLoaded,
-                          fontsError,
-                          'medium',
-                        ),
-                      },
-                    ]}
-                  >
-                    Share
-                  </Text>
-                </Pressable>
-                <Pressable style={styles.actionIconButton}>
-                  <LocalIcon source={STATUS_ASSETS.edit} style={styles.actionEditGlyph} />
-                </Pressable>
-                <Pressable onPress={onOpenFeedVariantMenu} style={styles.actionIconButton}>
-                  <LocalIcon source={STATUS_ASSETS.more} style={styles.actionMoreGlyph} />
-                </Pressable>
-              </View>
-            </Animated.View>
+            <View style={styles.actionBar}>
+              <Pressable style={styles.shareButton}>
+                <View style={styles.shareButtonIconWrap}>
+                  <LocalIcon source={STATUS_ASSETS.whatsappGlyph} style={styles.shareButtonIcon} />
+                </View>
+                <Text
+                  style={[
+                    styles.shareButtonLabel,
+                    {
+                      fontFamily: getGoogleSansFontFamily(
+                        !!fontsLoaded,
+                        fontsError,
+                        'medium',
+                      ),
+                    },
+                  ]}
+                >
+                  Share
+                </Text>
+              </Pressable>
+              <Pressable style={styles.actionIconButton}>
+                <LocalIcon source={STATUS_ASSETS.edit} style={styles.actionEditGlyph} />
+              </Pressable>
+              <Pressable onPress={onOpenFeedVariantMenu} style={styles.actionIconButton}>
+                <LocalIcon source={STATUS_ASSETS.more} style={styles.actionMoreGlyph} />
+              </Pressable>
+            </View>
+            <View pointerEvents="none" style={styles.bottomNavSeparator} />
+          </Animated.View>
 
-          <Animated.View
-            pointerEvents={isPaymentNudgeActive ? 'none' : 'auto'}
-            renderToHardwareTextureAndroid
-            shouldRasterizeIOS
-            style={[
-              styles.bottomNavContainer,
-              {
-                opacity: paymentNudgeChromeOpacity,
-                transform: [{ translateY: paymentNudgeBottomNavTranslateY }],
-              },
-            ]}
+          <View
+            pointerEvents="auto"
+            style={styles.bottomNavContainer}
           >
             <View style={[styles.bottomNavShell, { paddingBottom: resolvedBottomInset }]}>
               <View style={styles.bottomNav}>
@@ -2288,7 +2388,7 @@ function FeedScreen({
                 ))}
               </View>
             </View>
-          </Animated.View>
+          </View>
         </>
       ) : (
         <>
@@ -2316,36 +2416,35 @@ function FeedScreen({
             </View>
           </Animated.View>
 
-          {!isPaymentNudgeActive ? (
+          <Animated.View
+            pointerEvents={isPaymentNudgeActive ? 'none' : 'auto'}
+            renderToHardwareTextureAndroid
+            shouldRasterizeIOS
+            style={[
+              styles.actionBarContainer,
+              {
+                paddingBottom: actionBarBottomPadding,
+                transform: [{ translateY: actionBarBottomOffset }],
+              },
+            ]}
+          >
+            <FlatList
+              automaticallyAdjustContentInsets={false}
+              contentContainerStyle={styles.actionBarContent}
+              contentInsetAdjustmentBehavior="never"
+              data={LEGACY_ACTIONS}
+              horizontal
+              ItemSeparatorComponent={ActionBarSpacer}
+              keyExtractor={(item) => item.label}
+              renderItem={renderActionItem}
+              showsHorizontalScrollIndicator={false}
+              style={styles.legacyActionBar}
+            />
             <Animated.View
-              renderToHardwareTextureAndroid
-              shouldRasterizeIOS
-              style={[
-                styles.actionBarContainer,
-                {
-                  paddingBottom: actionBarBottomPadding,
-                  transform: [{ translateY: actionBarBottomOffset }],
-                },
-              ]}
-            >
-              <FlatList
-                automaticallyAdjustContentInsets={false}
-                contentContainerStyle={styles.actionBarContent}
-                contentInsetAdjustmentBehavior="never"
-                data={LEGACY_ACTIONS}
-                horizontal
-                ItemSeparatorComponent={ActionBarSpacer}
-                keyExtractor={(item) => item.label}
-                renderItem={renderActionItem}
-                showsHorizontalScrollIndicator={false}
-                style={styles.legacyActionBar}
-              />
-              <Animated.View
-                pointerEvents="none"
-                style={[styles.bottomNavSeparator, { opacity: chromeVisibility }]}
-              />
-            </Animated.View>
-          ) : null}
+              pointerEvents="none"
+              style={[styles.bottomNavSeparator, { opacity: legacyChromeVisibility }]}
+            />
+          </Animated.View>
         </>
       )}
     </View>

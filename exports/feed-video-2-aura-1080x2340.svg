@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="2340" viewBox="0 0 1080 2340">
+  <defs>
+    <linearGradient id="poster-stage-aura-AF7C61-base-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgb(69, 49, 47)" stop-opacity="1" />
+      <stop offset="44%" stop-color="rgb(59, 42, 40)" stop-opacity="0.72" />
+      <stop offset="100%" stop-color="rgb(98, 69, 68)" stop-opacity="1" />
+    </linearGradient>
+    <radialGradient id="poster-stage-aura-AF7C61-center-haze" gradientUnits="userSpaceOnUse" cx="540" cy="1310.4" r="1263.6000000000001">
+      <stop offset="0%" stop-color="rgb(208, 198, 192)" stop-opacity="0.22" />
+      <stop offset="52%" stop-color="rgb(208, 198, 192)" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="rgb(208, 198, 192)" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="poster-stage-aura-AF7C61-center-glow" gradientUnits="userSpaceOnUse" cx="540" cy="1029.6" r="1123.2">
+      <stop offset="0%" stop-color="rgb(227, 150, 110)" stop-opacity="0.5" />
+      <stop offset="58%" stop-color="rgb(227, 150, 110)" stop-opacity="0.14" />
+      <stop offset="100%" stop-color="rgb(227, 150, 110)" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="poster-stage-aura-AF7C61-top-blob" gradientUnits="userSpaceOnUse" cx="950.4" cy="93.60000000000001" r="799.2">
+      <stop offset="0%" stop-color="rgb(227, 150, 110)" stop-opacity="0.42" />
+      <stop offset="54%" stop-color="rgb(227, 150, 110)" stop-opacity="0.10079999999999999" />
+      <stop offset="100%" stop-color="rgb(227, 150, 110)" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="poster-stage-aura-AF7C61-bottom-blob" gradientUnits="userSpaceOnUse" cx="194.4" cy="2152.8" r="712.8000000000001">
+      <stop offset="0%" stop-color="rgb(175, 124, 97)" stop-opacity="0.252" />
+      <stop offset="56%" stop-color="rgb(175, 124, 97)" stop-opacity="0.0756" />
+      <stop offset="100%" stop-color="rgb(175, 124, 97)" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="poster-stage-aura-AF7C61-side-glow" gradientUnits="userSpaceOnUse" cx="1123.2" cy="1684.8" r="842.4">
+      <stop offset="0%" stop-color="rgb(227, 150, 110)" stop-opacity="0.18" />
+      <stop offset="58%" stop-color="rgb(227, 150, 110)" stop-opacity="0.06" />
+      <stop offset="100%" stop-color="rgb(227, 150, 110)" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="poster-stage-aura-AF7C61-vignette" gradientUnits="userSpaceOnUse" cx="540" cy="1170" r="1872">
+      <stop offset="34%" stop-color="#000000" stop-opacity="0" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.2" />
+    </radialGradient>
+    <linearGradient id="poster-stage-aura-AF7C61-top-veil" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="rgb(37, 27, 29)" stop-opacity="0.46" />
+      <stop offset="42%" stop-color="rgb(37, 27, 29)" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="rgb(37, 27, 29)" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1080" height="2340" fill="rgb(59, 42, 40)" />
+  <rect x="0" y="0" width="1080" height="2340" fill="url(#poster-stage-aura-AF7C61-base-gradient)" />
+  <rect x="0" y="0" width="1080" height="2340" fill="url(#poster-stage-aura-AF7C61-center-haze)" />
+  <rect x="0" y="0" width="1080" height="2340" fill="url(#poster-stage-aura-AF7C61-center-glow)" />
+  <rect x="0" y="0" width="1080" height="2340" fill="url(#poster-stage-aura-AF7C61-top-blob)" />
+  <rect x="0" y="0" width="1080" height="2340" fill="url(#poster-stage-aura-AF7C61-bottom-blob)" />
+  <rect x="0" y="0" width="1080" height="2340" fill="url(#poster-stage-aura-AF7C61-side-glow)" />
+  <rect x="0" y="0" width="1080" height="2340" fill="url(#poster-stage-aura-AF7C61-top-veil)" />
+  <circle cx="196.56743586994708" cy="576.6471410449594" r="1.7502379113808275" fill="rgb(208, 198, 192)" opacity="0.012149226083420218" />
+  <circle cx="739.9009822122753" cy="1164.3023126805201" r="0.9664594208355993" fill="rgb(227, 150, 110)" opacity="0.021785937793552874" />
+  <circle cx="410.9980053361505" cy="931.2020610272884" r="2.174270062427968" fill="rgb(227, 150, 110)" opacity="0.038727011677809065" />
+  <circle cx="978.7098040804267" cy="155.11249631177634" r="1.7004563117865472" fill="rgb(208, 198, 192)" opacity="0.013694829462096096" />
+  <circle cx="757.1779346186668" cy="469.24485177733004" r="3.3283829975873234" fill="rgb(208, 198, 192)" opacity="0.0361929436577484" />
+  <circle cx="519.9731879867613" cy="2048.9886615844443" r="1.3095555416774005" fill="rgb(227, 150, 110)" opacity="0.030565074000507595" />
+  <circle cx="66.5683517139405" cy="391.27845788374543" r="2.4359541890211402" fill="rgb(208, 198, 192)" opacity="0.03082992080692202" />
+  <circle cx="408.2552368193865" cy="396.54376657214016" r="1.2423859473783523" fill="rgb(208, 198, 192)" opacity="0.030696248525753617" />
+  <circle cx="575.7963525597006" cy="83.8453337084502" r="1.575190563313663" fill="rgb(227, 150, 110)" opacity="0.037067706800065936" />
+  <circle cx="216.26991575583816" cy="555.6999438861385" r="1.1796257832553239" fill="rgb(208, 198, 192)" opacity="0.026481911897659305" />
+  <circle cx="1076.906694760546" cy="1757.2743687406182" r="2.165539405401796" fill="rgb(208, 198, 192)" opacity="0.03258222677279264" />
+  <circle cx="416.25731874257326" cy="451.60568359773606" r="3.477248036721721" fill="rgb(227, 150, 110)" opacity="0.019253560712561013" />
+  <circle cx="666.4483301807195" cy="697.1195243764669" r="2.4434089548885822" fill="rgb(208, 198, 192)" opacity="0.03745534973125905" />
+  <circle cx="116.7499496228993" cy="920.507178758271" r="2.221817135391757" fill="rgb(208, 198, 192)" opacity="0.029624768402427434" />
+  <circle cx="134.58229984156787" cy="211.46059228107333" r="3.0399184213019907" fill="rgb(227, 150, 110)" opacity="0.02122669977042824" />
+  <circle cx="265.0756976008415" cy="44.42197804804891" r="1.430771616147831" fill="rgb(227, 150, 110)" opacity="0.02666900353319943" />
+  <circle cx="996.4522020611912" cy="295.94351573847234" r="2.8735924573615192" fill="rgb(208, 198, 192)" opacity="0.03085263281967491" />
+  <circle cx="914.0301242284477" cy="16.216996335424483" r="2.648791388934478" fill="rgb(208, 198, 192)" opacity="0.025338842146098613" />
+  <circle cx="490.0506322737783" cy="1004.5509966462851" r="1.160172941815108" fill="rgb(227, 150, 110)" opacity="0.03748985938448459" />
+  <circle cx="56.42411660403013" cy="1403.2280901772901" r="2.1923247905913743" fill="rgb(227, 150, 110)" opacity="0.03345225773565472" />
+  <circle cx="255.24468046613038" cy="447.8636420611292" r="3.032541235908866" fill="rgb(208, 198, 192)" opacity="0.028392287502996626" />
+  <circle cx="161.1738989688456" cy="1818.1248115422204" r="2.1406396865379067" fill="rgb(208, 198, 192)" opacity="0.024083391208201646" />
+  <circle cx="1074.9907596688718" cy="2013.2476854510605" r="2.36862689005211" fill="rgb(227, 150, 110)" opacity="0.015799503886140882" />
+  <circle cx="756.7488323897123" cy="2004.5716092875227" r="0.9258644406218082" fill="rgb(227, 150, 110)" opacity="0.029050671914592385" />
+  <circle cx="509.57372643984854" cy="2214.2373490612954" r="1.1566240897402167" fill="rgb(208, 198, 192)" opacity="0.021253904960118235" />
+  <circle cx="359.62836971506476" cy="318.6156541714445" r="0.9988986359443516" fill="rgb(227, 150, 110)" opacity="0.02714437960088253" />
+  <circle cx="375.4474417772144" cy="2140.6181950494647" r="2.3973449422977864" fill="rgb(227, 150, 110)" opacity="0.01506083327997476" />
+  <circle cx="34.442970491945744" cy="1560.8916194317862" r="1.805299991974607" fill="rgb(227, 150, 110)" opacity="0.015528705870732665" />
+  <circle cx="359.4336083997041" cy="2257.612344296649" r="2.56560901850462" fill="rgb(227, 150, 110)" opacity="0.01835216853301972" />
+  <circle cx="616.1847180314362" cy="1565.9251552121714" r="1.5577929857652635" fill="rgb(227, 150, 110)" opacity="0.02114009250327945" />
+  <circle cx="424.15290783159435" cy="203.36722305044532" r="2.7387013756670058" fill="rgb(208, 198, 192)" opacity="0.01917866610083729" />
+  <circle cx="260.77181831002235" cy="1789.2894513672218" r="1.90239624758251" fill="rgb(208, 198, 192)" opacity="0.03763409272022546" />
+  <circle cx="439.1171482298523" cy="879.9065288063139" r="2.2626266011968257" fill="rgb(208, 198, 192)" opacity="0.017989929898642003" />
+  <circle cx="235.83709789440036" cy="1647.3731894278899" r="2.305829863762483" fill="rgb(227, 150, 110)" opacity="0.01925722024589777" />
+  <circle cx="871.4033213909715" cy="1015.065388083458" r="1.1786442282609642" fill="rgb(208, 198, 192)" opacity="0.02351324996072799" />
+  <circle cx="1016.3840555772185" cy="1484.303340758197" r="2.905340282106772" fill="rgb(208, 198, 192)" opacity="0.036688219754025336" />
+  <circle cx="17.76015487499535" cy="1552.9512100014836" r="2.5858911875635386" fill="rgb(227, 150, 110)" opacity="0.031163628990761937" />
+  <circle cx="767.414959911257" cy="1822.3826741846278" r="1.8208695776294919" fill="rgb(208, 198, 192)" opacity="0.034154911044985053" />
+  <circle cx="363.8649326842278" cy="1499.397520814091" r="3.183279771823436" fill="rgb(227, 150, 110)" opacity="0.038457165845669807" />
+  <circle cx="555.283922329545" cy="1702.4994926294312" r="1.7960973989684135" fill="rgb(227, 150, 110)" opacity="0.0327382280472666" />
+  <circle cx="443.7530454341322" cy="807.9600958060473" r="3.227804902009666" fill="rgb(208, 198, 192)" opacity="0.02920855767186731" />
+  <circle cx="848.8638130389154" cy="2195.596024529077" r="1.6717979782726617" fill="rgb(227, 150, 110)" opacity="0.014474292486906052" />
+  <circle cx="50.68491845391691" cy="452.49298620969057" r="2.179402296897024" fill="rgb(208, 198, 192)" opacity="0.012320826162584127" />
+  <circle cx="708.1393243744969" cy="1351.69205206912" r="3.2646811498794706" fill="rgb(208, 198, 192)" opacity="0.026408330818638207" />
+  <circle cx="127.39465375430882" cy="695.4865700472146" r="2.987069460004568" fill="rgb(227, 150, 110)" opacity="0.031471467155031865" />
+  <circle cx="69.04942380264401" cy="145.40176451671869" r="3.2899253855925052" fill="rgb(208, 198, 192)" opacity="0.03589096176251769" />
+  <circle cx="1066.2819093000144" cy="1278.4005370549858" r="2.2195942104794084" fill="rgb(227, 150, 110)" opacity="0.018714066536165773" />
+  <circle cx="256.8008762598038" cy="1502.6044811820611" r="1.0884624168742447" fill="rgb(227, 150, 110)" opacity="0.0268878505397588" />
+  <circle cx="586.1632265243679" cy="1732.4317490961403" r="1.2694307969883085" fill="rgb(208, 198, 192)" opacity="0.02369801917579025" />
+  <circle cx="252.9604530148208" cy="1588.1837947899476" r="2.2632370767649266" fill="rgb(208, 198, 192)" opacity="0.0366479446515441" />
+  <circle cx="1069.1912045236677" cy="1006.7701987177134" r="1.1725214461795985" fill="rgb(227, 150, 110)" opacity="0.024611331355758014" />
+  <circle cx="961.9068817421794" cy="2225.784842292778" r="1.1546425568405538" fill="rgb(208, 198, 192)" opacity="0.03149347479455173" />
+  <circle cx="146.9796068686992" cy="357.66581975854933" r="1.0026815097779036" fill="rgb(227, 150, 110)" opacity="0.020822580914013088" />
+  <circle cx="407.1845299936831" cy="2263.605816406198" r="2.3566203370224685" fill="rgb(227, 150, 110)" opacity="0.01850662325695157" />
+  <circle cx="586.3396744709462" cy="1606.804685164243" r="1.429049186874181" fill="rgb(208, 198, 192)" opacity="0.01828795307222754" />
+  <circle cx="1015.449251756072" cy="2081.5874873986468" r="3.4540156085509808" fill="rgb(208, 198, 192)" opacity="0.01324323088862002" />
+  <rect x="0" y="0" width="1080" height="2340" fill="url(#poster-stage-aura-AF7C61-vignette)" />
+</svg>
